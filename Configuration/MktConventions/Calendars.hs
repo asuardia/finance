@@ -104,8 +104,8 @@ target = Calendar {
                       swiftCode   = Nothing,
                       weekEnd     = [Saturday, Sunday],
                       holidays    = Just (Holidays {
-                                                     perpetual = [(12, 24)],
-                                                     single = []
+                                                     perpetual = [(1,1),(1,5),(12, 25),(12,26)],
+                                                     single = [fromGregorian 2015 4 3, fromGregorian 2015 4 6,fromGregorian 2016 3 25,fromGregorian 2016 3 28,fromGregorian 2017 4 14,fromGregorian 2017 4 17,fromGregorian 2018 3 30,fromGregorian 2018 4 2,fromGregorian 2019 4 19,fromGregorian 2019 4 22,fromGregorian 2020 4 10,fromGregorian 2020 4 13]
                                                    })
                   } 
 --------------------------------------------------------------------------
@@ -115,7 +115,7 @@ new_york = Calendar {
                         swiftCode   = Nothing,
                         weekEnd     = [Saturday, Sunday],
                         holidays    = Just (Holidays {
-                                                       perpetual = [(12, 24)],
+                                                       perpetual = [(1,1),(7,4),(12, 25)],
                                                        single = []
                                                      })
                     } 
