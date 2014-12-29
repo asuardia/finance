@@ -23,20 +23,69 @@ import Configuration.MktConventions.DateAdjustments as DAdj
 
 data IRIndex = IRIndex {
                            iriClassification :: Classification,
-                           iriFixings :: Fixings
+                           iriFixings        :: Fixings
                        } deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 
 data Classification = Classification {
-                                         clCategory :: Category,
+                                         clCategory    :: Category,
                                          clDescription :: Maybe String,
-                                         clCode :: Maybe String,
-                                         clIndexDef :: IndexDef
+                                         clCode        :: Maybe String,
+                                         clIndexDef    :: IndexDef
                                      } deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data IndexDef = IndexDef {
+                             idNature            :: RateNature,
+                             idCurrency          :: Currency,
+                             idStartDelay        :: DateShifter,
+                             idCalcStartSchedule :: CalcStartSchedule,
+                             idCalcEndSchedule   :: CalcEndSchedule,
+                             idPaymentSchedule   :: PaymentSchedule,
+                             idFixingSchedule    :: FixingSchedule,
+                             idRateConvention    :: RateConv,
+                             idRoundRule         :: RoundingRule
+                         } deriving (Eq, Show, Data, Typeable)
+
+--------------------------------------------------------------------------
+data RateNature = StandardRate
+                | SwapRate{
+                              rnGenerator :: String,
+                              rnMaturity  :: Maturity  
+                          } deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data Maturity = Maturity {
+                             matType   :: TypeMaturity,
+                             matNumber :: Int,
+                             matUnits  :: MatUnit
+                         } deriving (Eq, Show, Data, Typeable)  
+--------------------------------------------------------------------------
+data TypeMaturity = Tenor deriving (Eq, Show, Data, Typeable) 
+--------------------------------------------------------------------------
+data MatUnit = Year deriving (Eq, Show, Data, Typeable) 
+--------------------------------------------------------------------------
+data CalcStartSchedule = DrivingSchedule {
+                                             dsSchedule :: ScheduleGen
+                                         } deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data CalcEndSchedule = EndSchEqual2Start deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data PaymentSchedule = PaymentSchEqual2Start
+                     | PaymentSchDeducedFromStart {
+                                                      pSchDedFromSt :: DateShifter
+                                                  } deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data FixingSchedule = FixingSchEqual2Start
+                    | FixingSchDeducedFromStart {
+                                                    fSchDedFromSt :: DateShifter
+                                                } deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+
+data RoundingRule = None | Nearest | ByExcess | SameAsAbove5
+                    deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 
 data Fixings = Fixings {
-                           fixFormulaType :: FormulaType,
+                           fixFormulaType    :: FormulaType,
                            fixArchivingGroup :: ArchivingGroup
                        } deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
@@ -56,46 +105,6 @@ data ArchivingGroup = EuriborAGr deriving (Eq, Show, Data, Typeable)
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------
 
-
---------------------------------------------------------------------------
-addBusDays :: CalendarCheck -> Maybe Calendar -> Integer -> Day -> Day
-          ---------------------------------
-addBusDays None _ n dt1 = addDays n dt1
-          ---------------------------------
-addBusDays _    _ 0 dt1 = dt1 
-          ---------------------------------
-addBusDays Weekend mc n dt1 = 
-    let unit = sign (fromIntegral n :: Double)
-        dt2 = addBusDays None mc unit dt1
-        n' =  n - unit
-    in if isWeekEnd dt2
-    then addBusDays Weekend mc n dt2
-    else addBusDays Weekend mc n' dt2
-          ---------------------------------
-addBusDays External (Just cal) n dt1 = 
-    let unit = sign (fromIntegral n :: Double)
-        dt2 = addBusDays None Nothing unit dt1
-        n' =  n - unit
-    in if isInCalendar cal dt2
-    then addBusDays External (Just cal) n dt2
-    else addBusDays External (Just cal) n' dt2
-          ---------------------------------
-addBusDays (Internal cal) mc n dt1 = 
-    let unit = sign (fromIntegral n :: Double)
-        dt2 = addBusDays None Nothing unit dt1
-        n' =  n - unit
-    in if isInCalendar cal dt2
-    then addBusDays (Internal cal) mc n dt2
-    else addBusDays (Internal cal) mc n' dt2
-          ---------------------------------
-addBusDays (External_Plus cal) (Just calExt) n dt1 = 
-    let unit = sign (fromIntegral n :: Double)
-        dt2 = addBusDays None Nothing unit dt1
-        n' =  n - unit
-        unionCal = CalendarUnion [cal, calExt]
-    in if isInCalendar unionCal dt2
-    then addBusDays (External_Plus cal) (Just calExt) n dt2
-    else addBusDays (External_Plus cal) (Just calExt) n' dt2
 
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
