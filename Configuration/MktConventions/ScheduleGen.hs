@@ -6,8 +6,9 @@
 --------------------------------------------------------------------------
 module Configuration.MktConventions.ScheduleGen
     ( 
-     ScheduleGen (..), shiftDate',
-     _6M_MODFOLL
+     ScheduleGen (..), Generation (..),
+     shiftDate', genSchedule, 
+     _3M_MODFOLL, _6M_MODFOLL, _1Y_MODFOLL
     ) where
 
 --------------------------------------------------------------------------
@@ -118,7 +119,7 @@ genSchedule sg@SimpleGen {
                 | dt2 <= dt1'' = Ok_ [] 
                 | otherwise = 
        Ok_ (dt1'' : ((\(Ok_ x) -> x) $ genSchedule sg mbCal dt1'' dt2))
-       where dt1'  = shiftDate' units e2e dt1 n
+       where dt1'  = shiftDate' units e2e (checkingCal calCheck mbCal rollConv dt1) n
              dt1'' = checkingCal calCheck mbCal rollConv dt1'
           ---------------------------------
 genSchedule sg@SimpleGen {
@@ -137,7 +138,7 @@ genSchedule sg@SimpleGen {
                 | dt2'' <= dt1 = Ok_ [] 
                 | otherwise = 
        Ok_ (sort (dt2'' : ((\(Ok_ x) -> x) $ genSchedule sg mbCal dt1 dt2'')))
-       where dt2'  = shiftDate' units e2e dt2 (-n)
+       where dt2'  = shiftDate' units e2e (checkingCal calCheck mbCal rollConv dt2) (-n)
              dt2'' = checkingCal calCheck mbCal rollConv dt2'
             
           ---------------------------------
@@ -146,13 +147,27 @@ genSchedule _ _ _ _ = Error_ " genSchedule: option not implemented "
 shiftDate' :: Units -> Bool -> Day -> Int -> Day
 shiftDate' Month True  dt n = pass2EOM $  
     addGregorianMonthsClip (toInteger n) dt
-shiftDate' Month False dt n = addGregorianMonthsRollOver  (toInteger n) dt
+shiftDate' Month False dt n = addGregorianMonthsClip  (toInteger n) dt
 shiftDate' Year  True  dt n = pass2EOM $
     addGregorianMonthsClip (toInteger $ n*12) dt
-shiftDate' Year  False dt n = addGregorianMonthsRollOver  (toInteger $ n*12) dt
+shiftDate' Year  False dt n = addGregorianMonthsClip  (toInteger $ n*12) dt
 
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
+--------------------------------------------------------------------------
+_3M_MODFOLL = SimpleGen {
+                            sgCalendCheck  = DSh.External,
+                            sgKeepIdDates  = False,
+                            sgGenFrequency = Forward,
+                            sgUnit         = Month,
+                            sgNumber       = 3,
+                            sgEndToEnd     = False,
+                            sgGeneration   = Normal,
+                            sgRollConv     = ModFoll, 
+                            sgAdjustment   = Nothing,
+                            sgStartDate    = Nothing,
+                            sgEndDate      = Nothing
+                        } 
 --------------------------------------------------------------------------
 _6M_MODFOLL = SimpleGen {
                             sgCalendCheck  = DSh.External,
@@ -160,6 +175,20 @@ _6M_MODFOLL = SimpleGen {
                             sgGenFrequency = Forward,
                             sgUnit         = Month,
                             sgNumber       = 6,
+                            sgEndToEnd     = False,
+                            sgGeneration   = Normal,
+                            sgRollConv     = ModFoll, 
+                            sgAdjustment   = Nothing,
+                            sgStartDate    = Nothing,
+                            sgEndDate      = Nothing
+                        } 
+--------------------------------------------------------------------------
+_1Y_MODFOLL = SimpleGen {
+                            sgCalendCheck  = DSh.External,
+                            sgKeepIdDates  = False,
+                            sgGenFrequency = Forward,
+                            sgUnit         = Month,
+                            sgNumber       = 12,
                             sgEndToEnd     = False,
                             sgGeneration   = Normal,
                             sgRollConv     = ModFoll, 
