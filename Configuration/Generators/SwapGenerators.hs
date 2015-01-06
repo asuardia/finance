@@ -7,7 +7,8 @@
 
 module Configuration.Generators.SwapGenerators
     (    
-     SwapGenerator (..)
+     SwapGenerator (..), LegGenerator (..), Swap (..),
+     Leg (..), Flow (..), SwapMktData (..)
     ) where
 
 --------------------------------------------------------------------------
@@ -204,7 +205,7 @@ data Leg = FixedLeg {
                         lYieldConv :: YieldConv,
                         lMarketData :: Map.Map SwapMktData String,
                         lRate :: Double,
-                        flFlows :: [FixedFlow]
+                        flFlows :: [Flow]
                     } 
          | FloatingLeg {
                            lPayReceive :: CTP.PayReceive, 
@@ -229,36 +230,34 @@ data Leg = FixedLeg {
                            lAccrualConv :: AccrualConv,
                            lYieldConv :: YieldConv,
                            lMarketData :: Map.Map SwapMktData String,
-                           fllFlows :: [FloatingFlow]
+                           fllFlows :: [Flow]
                        } deriving (Eq, Show, Data, Typeable)         
 -------------------------------------------------------------------------- 
 data SwapMktData = EstCurve | DiscCurve | CapFloorVol | SwaptionVol
                    deriving (Eq, Ord, Show, Data, Typeable)         
 --------------------------------------------------------------------------
 
-data FixedFlow = FixedFlow {
-                               ffCalcStartDate :: Day,
-                               ffCalcEndDate :: Day,
-                               ffRemCapital :: Double,
-                               ffRate :: Double,
-                               ffPayDate :: Day,
-                               ffFlow :: Double,
-                               ffCurr :: Currency
-                           } deriving (Eq, Show, Data, Typeable)                   
---------------------------------------------------------------------------
-
-data FloatingFlow = FloatingFlow {
-                                     flfCalcStartDate :: Day,
-                                     flfCalcEndDate :: Day,
-                                     flfRemCapital :: Double,
-                                     flfFixDate :: Day,
-                                     flfRate :: Double,
-                                     flfMargin :: Double,
-                                     flfRateFactor :: Double,
-                                     flfPayDate :: Day,
-                                     flfFlow :: Double,
-                                     flfCurr :: Currency
-                                 } deriving (Eq, Show, Data, Typeable)                    
+data Flow = FixedFlow {
+                           ffCalcStartDate :: Day,
+                           ffCalcEndDate :: Day,
+                           ffRemCapital :: Double,
+                           ffRate :: Double,
+                           ffPayDate :: Day,
+                           ffFlow :: Double,
+                           ffCurr :: Currency
+                       } 
+          | FloatingFlow {
+                             flfCalcStartDate :: Day,
+                             flfCalcEndDate :: Day,
+                             flfRemCapital :: Double,
+                             flfFixDate :: Day,
+                             flfRate :: Double,
+                             flfMargin :: Double,
+                             flfRateFactor :: Double,
+                             flfPayDate :: Day,
+                             flfFlow :: Double,
+                             flfCurr :: Currency
+                         } deriving (Eq, Show, Data, Typeable)             
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------
