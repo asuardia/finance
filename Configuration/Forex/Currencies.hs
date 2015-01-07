@@ -29,7 +29,7 @@ data Currency = Currency {
                              symbol          :: Maybe String,
                              isoCode         :: String,
                              area            :: Maybe String,
-                             rateEntryMode   :: Maybe String,
+                             rateEntryMode   :: RateEntryMode,
                              flRateRef       :: Maybe String ,
                              shortTermRtConv :: RateConv,
                              longTermRtConv  :: RateConv,
@@ -41,6 +41,8 @@ data Currency = Currency {
                              rate            :: Maybe Rational
                          } deriving (Eq, Show, Data, Typeable)
 
+--------------------------------------------------------------------------
+data RateEntryMode = Rate | SwapPoints deriving (Eq, Show, Data, Typeable)
 
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
@@ -51,7 +53,7 @@ eur = Currency {
                    symbol          = Nothing,
                    isoCode         = "EUR",
                    area            = Nothing,
-                   rateEntryMode   = Just "Rate",
+                   rateEntryMode   = Rate,
                    flRateRef       = Just "EURIBOR",
                    shortTermRtConv = lin_act360,
                    longTermRtConv  = lin_30360,
@@ -69,7 +71,7 @@ usd = Currency {
                    symbol          = Just "$",
                    isoCode         = "USD",
                    area            = Nothing,
-                   rateEntryMode   = Just "Rate",
+                   rateEntryMode   = Rate,
                    flRateRef       = Just "LIBOR",
                    shortTermRtConv = lin_act360,
                    longTermRtConv  = lin_30360,

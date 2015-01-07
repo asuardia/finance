@@ -120,8 +120,8 @@ giveRateDates Fixing
     let cal = getCalendar iri
     let fix = checkingCal (sgCalendCheck stSched) (Just cal) (sgRollConv stSched) dt 
     startDay      <- shiftDate dtShift (Just cal) fix
-    (endDay' : _) <- genSchedule stSched (Just cal) fix (addGregorianYearsClip 10 fix)
-    endDay        <- shiftDate dtShift (Just cal) endDay'
+    (endDay : _) <- genSchedule stSched (Just cal) fix (addGregorianYearsClip 10 fix)
+    --endDay        <- shiftDate dtShift (Just cal) endDay'
     payDay        <- deduceDay paySch (Just cal) endDay
     return (fix, startDay, endDay, payDay)     
           ---------------------------------
@@ -143,8 +143,7 @@ giveRateDates StartDate
     fixDay        <- deduceDay fixSch (Just cal) startDay
     --let iniDay = if (sgGeneration stSched == Normal) then dt else startDay
     --let iniDay = startDay
-    (endDay' : _) <- genSchedule stSched (Just cal) fixDay (addGregorianYearsClip 10 fixDay)
-    endDay        <- shiftDate dtShift (Just cal) endDay'
+    (endDay : _) <- genSchedule stSched (Just cal) dt (addGregorianYearsClip 10 dt)
     payDay        <- deduceDay paySch (Just cal) endDay
     return (fixDay, startDay, endDay, payDay)      
           ---------------------------------

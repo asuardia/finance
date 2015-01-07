@@ -26,6 +26,7 @@ import Configuration.MktConventions.RateConv
 import qualified Configuration.CommonTypes.Types as CT
 import qualified Configuration.CommonTypes.TypesProducts as CTP
 import Configuration.Indices.IRIndices
+import Valuation
 --------------------------------------------------------------------------
 ------------------------------- Data -------------------------------------
 --------------------------------------------------------------------------
@@ -179,7 +180,7 @@ data Swap = Swap {
                      --swFutCashProccedCutOff :: FurCashProcCutOff,
                      swMarketQuote :: ConfMarketQuote,
                      swAddFlows :: Maybe [AdFlow],
-                     swLegs :: [Leg]
+                     swLegs :: [Leg (forall mod. mod)]
                  } deriving (Eq, Show, Data, Typeable)          
 --------------------------------------------------------------------------
 data AdFlow = AdFlow {
@@ -187,51 +188,52 @@ data AdFlow = AdFlow {
                          flQuantity :: CTP.Nominal
                      } deriving (Eq, Show, Data, Typeable)         
 --------------------------------------------------------------------------
-data Leg = FixedLeg {
-                        lPayReceive :: CTP.PayReceive, 
-                        lCurrency :: Currency, 
-                        lStartDelay :: DateShifter,
-                        lPayCalendar :: Calendar,
-                        lSchedDef :: SchedDef,
-                        lPayment :: CTP.Payment,
-                        lRateConv :: RateConv, 
-                        lRounding :: CT.RoundingRule,
-                        lStubPerDetail :: ConfStubPerDetail,
-                        lDayCount :: DayCount,
-                        lIniExchange :: Bool,
-                        lIntermPayments :: Bool,
-                        lFinExchange :: Bool,
-                        lAccrualConv :: AccrualConv,
-                        lYieldConv :: YieldConv,
-                        lMarketData :: Map.Map SwapMktData String,
-                        lRate :: Double,
-                        flFlows :: [Flow]
-                    } 
-         | FloatingLeg {
-                           lPayReceive :: CTP.PayReceive, 
-                           lIRIndex :: IRIndex, 
-                           lFactor :: Int, 
-                           lCurrency :: Currency,
-                           lFirstFix :: Double,
-                           lRateConv :: RateConv, 
-                           lMargin :: Double,
-                           lPayCalendar :: Calendar,
-                           lFixCalendar :: Calendar,
-                           lSchedDef :: SchedDef,
-                           lFixing :: CTP.Fixing,
-                           lPayment :: CTP.Payment,
-                           lRounding :: CT.RoundingRule,
-                           lStubPerDetail :: ConfStubPerDetail,
-                           lMarginMode :: MarginMode,
-                           lDayCount :: DayCount,
-                           lIniExchange :: Bool,
-                           lIntermPayments :: Bool,
-                           lFinExchange :: Bool,
-                           lAccrualConv :: AccrualConv,
-                           lYieldConv :: YieldConv,
-                           lMarketData :: Map.Map SwapMktData String,
-                           fllFlows :: [Flow]
-                       } deriving (Eq, Show, Data, Typeable)         
+data Leg mod = FixedLeg {
+                            lPayReceive :: CTP.PayReceive, 
+                            lCurrency :: Currency, 
+                            lStartDelay :: DateShifter,
+                            lPayCalendar :: Calendar,
+                            lSchedDef :: SchedDef,
+                            lPayment :: CTP.Payment,
+                            lRateConv :: RateConv, 
+                            lRounding :: CT.RoundingRule,
+                            lStubPerDetail :: ConfStubPerDetail,
+                            lDayCount :: DayCount,
+                            lIniExchange :: Bool,
+                            lIntermPayments :: Bool,
+                            lFinExchange :: Bool,
+                            lAccrualConv :: AccrualConv,
+                            lYieldConv :: YieldConv,
+                            lMarketData :: Map.Map SwapMktData String,
+                            lRate :: Double,
+                            lFlows :: [Flow]
+                        } 
+             | FloatingLeg {
+                               lPayReceive :: CTP.PayReceive, 
+                               lIRIndex :: IRIndex, 
+                               lFactor :: Int, 
+                               lCurrency :: Currency,
+                               lFirstFix :: Double,
+                               lRateConv :: RateConv, 
+                               lMargin :: Double,
+                               lPayCalendar :: Calendar,
+                               lFixCalendar :: Calendar,
+                               lSchedDef :: SchedDef,
+                               lFixing :: CTP.Fixing,
+                               lPayment :: CTP.Payment,
+                               lRounding :: CT.RoundingRule,
+                               lStubPerDetail :: ConfStubPerDetail,
+                               lMarginMode :: MarginMode,
+                               lDayCount :: DayCount,
+                               lIniExchange :: Bool,
+                               lIntermPayments :: Bool,
+                               lFinExchange :: Bool,
+                               lAccrualConv :: AccrualConv,
+                               lYieldConv :: YieldConv,
+                               lMarketData :: Map.Map SwapMktData String,
+                               lValuationInfo :: Engine mod,
+                               lFlows :: [Flow]
+                           } deriving (Eq, Show, Data, Typeable)         
 -------------------------------------------------------------------------- 
 data SwapMktData = EstCurve | DiscCurve | CapFloorVol | SwaptionVol
                    deriving (Eq, Ord, Show, Data, Typeable)         
