@@ -29,8 +29,8 @@ import Valuation.MktData
 --------------------------------------------------------------------------
 
 class Valuator v where
-    valueFunction :: v -> Leg -> Flow -> Result_ ValueStorage
-    valueGreeksFunction :: v -> Leg -> Flow -> Result_ ValueStorage
+    valueFunction :: v -> MktData -> Leg -> Flow -> Result_ ValueStorage
+    valueGreeksFunction :: v -> MktData -> Leg -> Flow -> Result_ ValueStorage
 
 --------------------------------------------------------------------------
 ---------------------------- Instances -----------------------------------   
@@ -58,14 +58,14 @@ instance Valuable ValLeg where
 -------------------------------------------------------------------------- 
 
 instance AnalyticValuable ValLeg where  
-    valueA leg = do
-        valFlows <- checkAllOk_ $ fmap (vlValuator leg) (lFlows $ vlLeg leg)
+    valueA vleg = do
+        valFlows <- checkAllOk_ $ fmap (vlValuator vleg) (lFlows $ vlLeg vleg)
         return ValueStorage {
                                 vsValue = sum $ fmap vsValue valFlows, 
                                 vsSubValues = valFlows
                             }  
-    valueAGreeks leg = do
-        valFlows <- checkAllOk_ $ fmap (vlValuatorGreeks leg) (lFlows $ vlLeg leg)
+    valueAGreeks vleg = do
+        valFlows <- checkAllOk_ $ fmap (vlValuatorGreeks vleg) (lFlows $ vlLeg vleg)
         return ValueGreeksStorage {
                                       vgsValue = sum $ fmap vsValue valFlows, 
                                       vgsGreeks = fmap (\ x -> 1) valFlows,
@@ -73,13 +73,13 @@ instance AnalyticValuable ValLeg where
                                   }   
 -------------------------------------------------------------------------- 
 instance Valuator (ValuationInfo PayOffStd ModelA) where    
-    valueFunction v = integrateBS
-    valueGreeksFunction v = integrateBSGreeks
+    valueFunction v mktDat = integrateBS mktDat
+    valueGreeksFunction v mktDat = integrateBSGreeks mktDat
     
-integrateBS :: Leg -> Flow -> Result_ ValueStorage
-integrateBS l f = Error_ ""
-integrateBSGreeks :: Leg -> Flow -> Result_ ValueStorage
-integrateBSGreeks l f = Error_ ""
+integrateBS :: MktData -> Leg -> Flow -> Result_ ValueStorage
+integrateBS md l f = Error_ ""
+integrateBSGreeks :: MktData -> Leg -> Flow -> Result_ ValueStorage
+integrateBSGreeks md l f = Error_ ""
 -------------------------------------------------------------------------- 
 -------------------------------------------------------------------------- 
 
