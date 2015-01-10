@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -XFlexibleInstances #-} 
-{-# OPTIONS_GHC -XNoMonomorphismRestriction #-} 
 
 --------------------------------------------------------------------------
 --------------------------------- Module ---------------------------------
@@ -19,7 +18,6 @@ module Configuration.MktConventions.Calendars
 import Data.Time.Calendar
 import Data.Time.Calendar.WeekDate
 import Utils.MyJSON
-import Data.Dynamic
 
 --------------------------------------------------------------------------
 -------------------------------- Alias -----------------------------------
@@ -37,8 +35,6 @@ data WeekDay = Monday
              | Friday	 
              | Saturday	 
              | Sunday deriving (Eq, Show, Data, Typeable, Enum, Read)
-kk = toDyn Monday
-jj = fromDyn kk
 --------------------------------------------------------------------------
 data Holidays = Holidays {
                              perpetual :: [(NumMonth, NumDay)],
