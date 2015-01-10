@@ -118,7 +118,7 @@ instance PayOff PayOffStd where
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------    
 
-getValuatorFun :: ValuatorHomog -> Leg -> Flow -> Result_ ValueStorage
+getValuatorFun :: ValuatorHomog -> MktData -> Leg -> Flow -> Result_ ValueStorage
 getValuatorFun (ValuatorHomog (vi)) = valueFunction vi
 --------------------------------------------------------------------------    
 buildValuator :: String -> String -> Result_ ValuatorHomog
