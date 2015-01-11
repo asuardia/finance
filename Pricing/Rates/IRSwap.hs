@@ -16,6 +16,7 @@ module Pricing.Rates.IRSwap
 --------------------------------------------------------------------------
 ------------------------------- Imports ----------------------------------
 --------------------------------------------------------------------------
+import Data.List
 import Utils.MyJSON
 import Utils.MyUtils
 import Configuration.Generators.SwapGenerators
@@ -86,7 +87,8 @@ integrateBSGreeks md l f = Error_ ""
 --------------------------------------------------------------------------
 -------------------------------- Alias -----------------------------------
 --------------------------------------------------------------------------
-
+type ModelLab = String
+type PayOffLab = String
 --------------------------------------------------------------------------
 ------------------------------- Data -------------------------------------
 --------------------------------------------------------------------------
@@ -102,6 +104,8 @@ data ValSwap = ValSwap {
 data ValLeg = ValLeg {
                          vlLeg :: Leg, 
                          vlEngine :: Engine,
+                         vlModelLab :: ModelLab,
+                         vlPayOffLab :: PayOffLab,
                          vlValuator :: Flow -> Result_ ValueStorage,
                          vlValuatorGreeks :: Flow -> Result_ ValueStorage
                      }
@@ -118,9 +122,87 @@ instance PayOff PayOffStd where
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------    
 
-getValuatorFun :: ValuatorHomog -> MktData -> Leg -> Flow -> Result_ ValueStorage
+getValuatorFun :: ValuatorHomog -> MktData -> Leg -> Flow 
+               -> Result_ ValueStorage
 getValuatorFun (ValuatorHomog (vi)) = valueFunction vi
 --------------------------------------------------------------------------    
-buildValuator :: String -> String -> Result_ ValuatorHomog
-buildValuator "PayOffStd" "ModelA" = 
+buildValuatorHomog :: String -> String -> Result_ ValuatorHomog
+buildValuatorHomog "PayOffStd" "ModelA" = 
     Ok_ (ValuatorHomog (ValuationInfo PayOffStd ModelA))
+-------------------------------------------------------------------------- 
+buildValuationLeg :: MktData -> (PayOffLab, ModelLab, Engine, Leg)
+                  -> Result_ ValLeg
+buildValuationLeg mkt (p, m, e, l) = do
+
+    (ValuatorHomog (valInfo)) <- buildValuatorHomog p m
+    return ValLeg {
+                      vlLeg = l, 
+                      vlEngine = e,
+                      vlModelLab = m,
+                      vlPayOffLab = p,
+                      vlValuator = (valueFunction valInfo) mkt l,
+                      vlValuatorGreeks = (valueGreeksFunction valInfo) mkt l
+                  }
+-------------------------------------------------------------------------- 
+buildValuationSwap :: [(PayOffLab, ModelLab, Engine)] -> Swap -> MktData 
+                   -> Result_ ValSwap
+buildValuationSwap ls@((p, m, e):[(ps, ms, es)]) sw mkt = do
+    let legs = swLegs sw
+    let numLegs = length legs
+    let inputList = if length ls == numLegs
+                    then ls
+                    else replicate numLegs (p,m,e)
+    let inputList2 = zipWith (\ (p,m,e) l -> (p,m,e,l))  inputList legs
+    valLegs <- checkAllOk_ $ fmap (buildValuationLeg mkt) inputList2
+    return ValSwap {
+                       vswSwap = sw, 
+                       vswLegs = valLegs
+                   }
+
+--------------------------------------------------------------------------
+------------------------------ Examples ----------------------------------
+-------------------------------------------------------------------------- 
+{-leg = swLeg swap
+mktData = MktData
+valInfo = ValuationInfo payOffA modelA
+val = valueFunction valInfo mktData leg
+valGreeks = valueGreeksFunction valInfo mktData leg
+
+valLeg = ValLeg leg Analytical val valGreeks
+
+valueA valLeg-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
