@@ -7,7 +7,7 @@
 
 module Configuration.Indices.IRIndices   
     ( 
-     IRIndex (..), MatUnit(..),
+     IRIndex (..), 
      giveRateDates,
      _EURIBOR3M, _EURIBOR6M
     ) where
@@ -24,6 +24,7 @@ import Configuration.Forex.Currencies
 import Configuration.MktConventions.ScheduleGen
 import Configuration.MktConventions.DateShifters
 import Configuration.MktConventions.RateConv
+import Configuration.Indices.ArchivingGroups
 import qualified Configuration.CommonTypes.Types as CT
 import qualified Configuration.CommonTypes.TypesProducts as CTP
 --------------------------------------------------------------------------
@@ -55,25 +56,15 @@ data IndexDef = IndexDef {
                              idRoundRule         :: CT.RoundingRule,
                              idRateCurve         :: Maybe String,
                              idContango          :: Bool,
-                             idEstimationCalends :: Maybe Calendar
+                             idEstimationCalends :: EstimationCalendars
                          } deriving (Eq, Show, Data, Typeable)
 
 --------------------------------------------------------------------------
 data RateNature = StandardRate
                 | SwapRate{
                               rnGenerator :: String,
-                              rnMaturity  :: Maturity  
+                              rnMaturity  :: CTP.Maturity  
                           } deriving (Eq, Show, Data, Typeable)
---------------------------------------------------------------------------
-data Maturity = Maturity {
-                             matType   :: TypeMaturity,
-                             matNumber :: Int,
-                             matUnits  :: MatUnit
-                         } deriving (Eq, Show, Data, Typeable)  
---------------------------------------------------------------------------
-data TypeMaturity = Tenor deriving (Eq, Show, Data, Typeable) 
---------------------------------------------------------------------------
-data MatUnit = Year | OtherUnit deriving (Eq, Show, Data, Typeable) 
 --------------------------------------------------------------------------
 
 data Fixings = Fixings {
@@ -92,10 +83,16 @@ data Category = Rate   | EquityPrice | BondPrice | Inflation
 data FormulaType = Published | Compounded | Average 
                  | Basket | StartEnd deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
-data ArchivingGroup = ArchivingGroup {archCal :: Calendar} 
-                      deriving (Eq, Show, Data, Typeable)
---------------------------------------------------------------------------
 data FixOrStart = Fixing | StartDate deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data EstimationCalendars = Inherited 
+                         | Redfined { 
+                                        starDatesCal :: CalendarType,
+                                        indexDatesCal :: CalendarType
+                                    } deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data CalendarType = Archiving | PayCurrency 
+                  | ArchPlusPayCurr deriving (Eq, Show, Data, Typeable)
 
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
@@ -154,21 +151,24 @@ getCalendar :: IRIndex -> Calendar
 getCalendar IRIndex {
                         iriClassification = Classification {
                                                                clIndexDef = IndexDef {
-                                                                                         idEstimationCalends = Nothing
+                                                                                         idEstimationCalends = Inherited
                                                                                      }
                                                            },
                         iriFixings = Fixings {
                                                  fixArchivingGroup = archGroup
                                              }
-                    } = archCal archGroup     
+                    } = agFixingCal archGroup     
           ---------------------------------
 getCalendar IRIndex {
                         iriClassification = Classification {
                                                                clIndexDef = IndexDef {
-                                                                                         idEstimationCalends = Just cal
+                                                                                         idEstimationCalends = _
                                                                                      }
-                                                           }
-                    } = cal
+                                                           },
+                        iriFixings = Fixings {
+                                                 fixArchivingGroup = archGroup
+                                             }
+                    } = agFixingCal archGroup  
 --------------------------------------------------------------------------
 deduceDay :: CTP.Schedule -> Maybe Calendar -> Day -> Result_ Day
 deduceDay CTP.SchEqual2{} mbCal dt = Ok_ dt
@@ -187,9 +187,6 @@ iriEx2 = giveRateDates StartDate _EURIBOR3M (fromGregorian 2015 1 1)
 iriEx3 = giveRateDates StartDate _EURCMS6Y (fromGregorian 2015 1 1)
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
---------------------------------------------------------------------------
-euriborAGr = ArchivingGroup {archCal = target}
-costMatSwapAGr = ArchivingGroup {archCal = target}
 --------------------------------------------------------------------------
 _EURIBOR3M = IRIndex {
                          iriClassification = Classification {
@@ -211,7 +208,7 @@ _EURIBOR3M = IRIndex {
                                                                                             idRoundRule         = CT.None,
                                                                                             idRateCurve         = Nothing,
                                                                                             idContango          = False,
-                                                                                            idEstimationCalends = Nothing
+                                                                                            idEstimationCalends = Inherited
                                                                                         }
                                                             },
                          iriFixings = Fixings {
@@ -240,7 +237,7 @@ _EURIBOR6M = IRIndex {
                                                                                             idRoundRule         = CT.None,
                                                                                             idRateCurve         = Nothing,
                                                                                             idContango          = False,
-                                                                                            idEstimationCalends = Nothing
+                                                                                            idEstimationCalends = Inherited
                                                                                        }
                                                             },
                          iriFixings = Fixings {
@@ -257,11 +254,13 @@ _EURCMS6Y = IRIndex {
                                                                clIndexDef    = IndexDef {
                                                                                             idNature            = SwapRate{
                                                                                                                               rnGenerator = "", --SwapGenerator _EURIBOR6M,
-                                                                                                                              rnMaturity  = Maturity {
-                                                                                                                                                         matType   = Tenor,
-                                                                                                                                                         matNumber = 6,
-                                                                                                                                                         matUnits  = Year
-                                                                                                                                                     }  
+                                                                                                                              rnMaturity  = CTP.Maturity {
+                                                                                                                                                             CTP.matTenor = Just CTP.Tenor {
+                                                                                                                                                                                              CTP.tenorUnit = CTP.Year,
+                                                                                                                                                                                              CTP.tenorQuantity = 6
+                                                                                                                                                                                           },
+                                                                                                                                                             CTP.matDate = Nothing
+                                                                                                                                                          }  
                                                                                                                           },
                                                                                             idCurrency          = eur,
                                                                                             idStartDelay        = plus_2_OPEN_DAYS,
@@ -273,7 +272,7 @@ _EURCMS6Y = IRIndex {
                                                                                             idRoundRule         = CT.None,
                                                                                             idRateCurve         = Nothing,
                                                                                             idContango          = False,
-                                                                                            idEstimationCalends = Nothing
+                                                                                            idEstimationCalends = Inherited
                                                                                        }
                                                             },
                          iriFixings = Fixings {

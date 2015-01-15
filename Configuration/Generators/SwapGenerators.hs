@@ -42,7 +42,7 @@ data SwapGenerator = SwapGenerator {
                                        swgSchedules :: ConfSchedules,
                                        swgStubPeriod :: ConfStubPeriod,
                                        swgSettlementDelay :: ConfSettlementDelay,
-                                       swgDefaultAmort :: DefaultAmortizing,
+                                       swgDefaultAmort :: Amortizing,
                                        --swgFutCashProccedCutOff :: FurCashProcCutOff,
                                        swgMarketQuote :: ConfMarketQuote,
                                        swgLegs :: [LegGenerator]
@@ -60,8 +60,19 @@ data ConfStubPeriod = UpFrontSP | InArrearsSP | BothEndsSP
 data ConfSettlementDelay = InheritedFromCurr 
                          | OthersCSD deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
-data DefaultAmortizing = NoneDA 
-                       | OthersDA deriving (Eq, Show, Data, Typeable)
+data Amortizing = NoneA 
+                | LinearRate {
+                                 aFrequency :: CTP.Frequency,
+                                 aRate :: Double
+                             }                             
+                | Constant {
+                               aFrequency :: CTP.Frequency,
+                               aEndNominal :: Double
+                           }                    
+                | LinearAmount {
+                                   aFrequency :: CTP.Frequency,
+                                   aAmount :: Double
+                               }deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 --data FurCashProcCutOff = Automatic 
 --                       | OthersCMQ deriving (Eq, Show, Data, Typeable)
@@ -114,7 +125,8 @@ data SchedDef = FixedSchedDef {
                                   sdCalcEndSchedule   :: Maybe CTP.Schedule,
                                   sdPaymentSchedule   :: Maybe CTP.Schedule,
                                   sdPayFreqRatio      :: Maybe Int,
-                                  sdCapitalSchedule   :: Maybe CTP.Schedule
+                                  sdCapitalSchedule   :: Maybe CTP.Schedule,
+                                  sdCapFreqRatio      :: Maybe Int
                               }
               | FloatSchedDef {
                                   sdCalcStartSchedule :: Maybe CTP.Schedule,
@@ -123,7 +135,8 @@ data SchedDef = FixedSchedDef {
                                   sdPayFreqRatio      :: Maybe Int,
                                   sdFixingSchedule    :: Maybe CTP.Schedule,
                                   sdFixFreqRatio      :: Maybe Int,
-                                  sdCapitalSchedule   :: Maybe CTP.Schedule
+                                  sdCapitalSchedule   :: Maybe CTP.Schedule,
+                                  sdCapFreqRatio      :: Maybe Int
                               }
                 deriving (Eq, Show, Data, Typeable)                    
 --------------------------------------------------------------------------
@@ -154,19 +167,36 @@ data MarginMode = AdditiveMM | MultiplicativeMM
                   deriving (Eq, Show, Data, Typeable)  
 --------------------------------------------------------------------------
 data AccrualConv = AccrualConv {
-                                   acMethod :: String,
-                                   acRounding :: String,
-                                   acRoundMode :: String
+                                   acMethod :: AccrualMethod,
+                                   acRounding :: AccrualRounding,
+                                   acRoundMode :: CT.RoundingRule
                                }      
-                   deriving (Eq, Show, Data, Typeable)       
+                   deriving (Eq, Show, Data, Typeable)         
+--------------------------------------------------------------------------
+data AccrualMethod = UseInterestConv | OthersAcrMethods
+                   deriving (Eq, Show, Data, Typeable)  
+--------------------------------------------------------------------------
+data AccrualRounding = NoneAR | OthersAR
+                   deriving (Eq, Show, Data, Typeable) 
 --------------------------------------------------------------------------
 data YieldConv = YieldConv {
-                               ycCalculation :: String,
-                               ycCoumponding :: String,
-                               ycGrossToCleanAccrual :: String,
-                               ycAltYieldConvention :: String
+                               ycCalculation :: YieldCalc,
+                               ycCoumponding :: YieldCoumpond,
+                               ycGrossToCleanAccrual :: YieldGross2CleanAccr,
+                               ycAltYieldConvention :: YieldAltYieldConv
                            }      
                  deriving (Eq, Show, Data, Typeable)    
+--------------------------------------------------------------------------
+data YieldCalc = AIBD | OthersYC deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data YieldCoumpond = AtCouponFreq | OthersYCoump 
+                     deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data YieldGross2CleanAccr = StandardGross2CleanAccr | OthersGCA
+                            deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data YieldAltYieldConv = NoAYC | OthersAYC
+                         deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data Swap = Swap {
                      swGenerator :: SwapGenerator,
@@ -179,7 +209,7 @@ data Swap = Swap {
                      swSchedules :: ConfSchedules,
                      swStubPeriod :: ConfStubPeriod,
                      swSettlementDelay :: ConfSettlementDelay,
-                     swDefaultAmort :: DefaultAmortizing,
+                     swDefaultAmort :: Amortizing,
                      --swFutCashProccedCutOff :: FurCashProcCutOff,
                      swMarketQuote :: ConfMarketQuote,
                      swAddFlows :: Maybe [AdFlow],
@@ -265,7 +295,38 @@ data Flow = FixedFlow {
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------
-
+generateSwap :: SwapGenerator -> StartDate -> CTP.Maturity -> Result_ Swap
+generateSwap sg@SwapGenerator { 
+                                  swgEvaluation = swapEval,
+                                  swgEstimation = est,
+                                  swgNumberLegs = numLegs,
+                                  swgSchedules = cnfSchl,
+                                  swgStubPeriod = cnfStubPer,
+                                  swgSettlementDelay = cnfSettDelay,
+                                  swgDefaultAmort = amort,
+                                  swgLegs = legGens
+                              }
+             stDate mat = do
+    let mat2 = addDate mat         
+    let stDate2 = cnfSettDelay stDate
+    legs <- checkAllOk_ $ generateLegs stDate mat2 cnfSchl cnfStubPer legGens
+    return Swap {
+                    swGenerator = sg,
+                    swStartDate = stDate,
+                    swMaturity = mat2,
+                    swNominal = 100000000,                     
+                    swEvaluation = swapEval,
+                    swEstimation = est,
+                    swNumberLegs = numLegs,
+                    swSchedules = cnfSchl,
+                    swStubPeriod = cnfStubPer,
+                    swSettlementDelay = cnfSettDelay,
+                    swDefaultAmort = amort,
+                    swMarketQuote = swgMarketQuote sg,
+                    swAddFlows = Nothing,
+                    swLegs = legs
+                }
+generateSwap _ _ = Error_ " generateSwap: not implemented option. "
 --------------------------------------------------------------------------
 -------------------------------- TESTS -----------------------------------
 --------------------------------------------------------------------------

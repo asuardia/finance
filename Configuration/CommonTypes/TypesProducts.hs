@@ -7,8 +7,8 @@
 --------------------------------------------------------------------------
 module Configuration.CommonTypes.TypesProducts   
     ( 
-     Schedule (..), SchOption (..), Payment (..),
-     Fixing (..), PayReceive (..), Maturity (..), Term (..), 
+     Schedule (..), SchOption (..), Payment (..), Frequency (..),
+     Fixing (..), PayReceive (..), Maturity (..), Tenor (..), Unit (..),
      Nominal (..)
      
     ) where
@@ -48,18 +48,21 @@ data PayReceive = Pay | Receive
                   deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data Maturity = Maturity {
-                             matUnit :: Maybe Term,
-                             matDate :: Day
+                             matTenor :: Maybe Tenor,
+                             matDate :: Maybe Day
                          }
                 deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
-data Term = Term {
-                     termUnit :: Unit,
-                     termQuantity :: Int
-                 } deriving (Eq, Show, Data, Typeable)
+data Tenor = Tenor {
+                       tenorUnit :: Unit,
+                       tenorQuantity :: Int
+                   } deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data Unit = Year | Month
             deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data Frequency = Annually | SemiAnnually | Quarterly | Monthly
+                deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data Nominal = Nominal {
                              nomQuantity :: Integer,

@@ -19,6 +19,7 @@ import Configuration.MktConventions.Calendars
 import Configuration.MktConventions.ScheduleGen
 import Configuration.MktConventions.RateConv
 import Configuration.MktConventions.DateShifters
+import Configuration.Indices.ArchivingGroups
 import qualified Configuration.CommonTypes.Types as CT
 
 --------------------------------------------------------------------------
@@ -30,7 +31,7 @@ data Currency = Currency {
                              isoCode         :: String,
                              area            :: Maybe String,
                              rateEntryMode   :: RateEntryMode,
-                             flRateRef       :: Maybe String ,
+                             flRateRef       :: ArchivingGroup ,
                              shortTermRtConv :: RateConv,
                              longTermRtConv  :: RateConv,
                              longTermSched   :: ScheduleGen,
@@ -54,7 +55,7 @@ eur = Currency {
                    isoCode         = "EUR",
                    area            = Nothing,
                    rateEntryMode   = Rate,
-                   flRateRef       = Just "EURIBOR",
+                   flRateRef       = euriborAGr,
                    shortTermRtConv = lin_act360,
                    longTermRtConv  = lin_30360,
                    longTermSched   = _1Y_MODFOLL,
@@ -72,7 +73,7 @@ usd = Currency {
                    isoCode         = "USD",
                    area            = Nothing,
                    rateEntryMode   = Rate,
-                   flRateRef       = Just "LIBOR",
+                   flRateRef       = euriborAGr,
                    shortTermRtConv = lin_act360,
                    longTermRtConv  = lin_30360,
                    longTermSched   = _1Y_MODFOLL,
