@@ -7,11 +7,13 @@
 
 module Configuration.MktConventions.BasisConv   
     ( 
-     BasisConv (..), BasisConventions (..), Numerator (..), Denominator (..),
+     BasisConv (..), Numerator (..), Denominator (..),
      TimeUnits (..), TypeInclExcl (..), EOMAdjust (..), Basis (..), 
      FullPeriodInterp (..), Breakdown (..), PeriodDet (..), Periodicity (..),
+     BasisConvLabel,
      yearFrac, yearFraction,
-     _ACTACT, _ACTACT_ISDA, _ACT360, _ACT365, _30360, _30E360_GERMAN, _30E360
+     actact, actact_isda, act360, act365, _30360, _30e360_german, _30e360,
+     bcACTACT, bcACTACT_ISDA, bcACT360, bcACT365, bc30360, bc30E360_GERMAN, bc30E360
     ) where
 
 --------------------------------------------------------------------------
@@ -25,6 +27,7 @@ import Utils.MyUtils
 -------------------------------- Alias -----------------------------------
 --------------------------------------------------------------------------
 
+type BasisConvLabel = String
 type NumMonth = Int
 type NumDay   = Int
 
@@ -53,14 +56,6 @@ data TimeUnits = Days
                | Quarters	 
                | Semesters deriving (Eq, Show, Data, Typeable, Read)
 
---------------------------------------------------------------------------
-data BasisConventions = ACTACT
-                      | ACTACT_ISDA
-                      | ACT360
-                      | ACT365
-                      | US30360
-                      | E30360
-                      | E30360_GERMAN deriving (Eq, Show, Data, Typeable, Read)
 --------------------------------------------------------------------------
 data BasisConv = BasisConv {
                                bc_basis   :: Basis,
@@ -120,15 +115,24 @@ data Periodicity = Year
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------
-
-yearFraction :: BasisConventions -> Day -> Day -> Result_ Double
-yearFraction ACTACT_ISDA dt1 dt2   = yearFrac _ACTACT_ISDA dt1 dt2
-yearFraction ACTACT dt1 dt2        = yearFrac _ACTACT dt1 dt2
-yearFraction ACT360 dt1 dt2        = yearFrac _ACT360 dt1 dt2
-yearFraction ACT365 dt1 dt2        = yearFrac _ACT365 dt1 dt2
-yearFraction US30360 dt1 dt2       = yearFrac _30360 dt1 dt2
-yearFraction E30360 dt1 dt2        = yearFrac _30E360 dt1 dt2
-yearFraction E30360_GERMAN dt1 dt2 = yearFrac _30E360_GERMAN dt1 dt2
+idBasisConv :: BasisConvLabel -> Result_ BasisConv
+idBasisConv "ACTACT"   = Ok_ actact
+idBasisConv "ACTACT_ISDA" = Ok_ actact_isda
+idBasisConv "ACT360"   = Ok_ act360
+idBasisConv "ACT365" = Ok_ act365
+idBasisConv "30360"   = Ok_ _30360
+idBasisConv "30E360_GERMAN" = Ok_ _30e360_german
+idBasisConv "30E360"   = Ok_ _30e360
+idBasisConv bc = Error_ (" idBasisConv: " ++ bc ++ "Not identified basis convention. ")
+--------------------------------------------------------------------------
+yearFraction :: BasisConvLabel -> Day -> Day -> Result_ Double
+yearFraction "ACTACT_ISDA" dt1 dt2   = yearFrac actact_isda dt1 dt2
+yearFraction "ACTACT" dt1 dt2        = yearFrac actact dt1 dt2
+yearFraction "ACT360" dt1 dt2        = yearFrac act360 dt1 dt2
+yearFraction "ACT365" dt1 dt2        = yearFrac act365 dt1 dt2
+yearFraction "30360" dt1 dt2       = yearFrac _30360 dt1 dt2
+yearFraction "30E360" dt1 dt2        = yearFrac _30e360 dt1 dt2
+yearFraction "30E360_GERMAN" dt1 dt2 = yearFrac _30e360_german dt1 dt2
 
 --------------------------------------------------------------------------
 yearFrac :: BasisConv -> Day -> Day -> Result_ Double
@@ -473,8 +477,8 @@ extractDayMonth dt1 dt2 = (d1, m1, d2, m2)
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------
-
-_ACTACT = BasisConv {
+bcACTACT = "ACTACT"
+actact = BasisConv {
                        bc_basis = Basis {
                                              numerator      = N_ACT,
                                              denominator    = D_ACT,
@@ -494,7 +498,8 @@ _ACTACT = BasisConv {
 
 --------------------------------------------------------------------------
 
-_ACTACT_ISDA = BasisConv {
+bcACTACT_ISDA = "ACTACT_ISDA"
+actact_isda = BasisConv {
                              bc_basis = Basis {
                                                    numerator      = N_ACT,
                                                    denominator    = D_ACT,
@@ -515,7 +520,8 @@ _ACTACT_ISDA = BasisConv {
 
 --------------------------------------------------------------------------
 
-_ACT360 = BasisConv {
+bcACT360 = "ACT360"
+act360 = BasisConv {
                        bc_basis = Basis {
                                              numerator      = N_ACT,
                                              denominator    = D_360,
@@ -531,7 +537,8 @@ _ACT360 = BasisConv {
 
 --------------------------------------------------------------------------
 
-_ACT365 = BasisConv {
+bcACT365 = "ACT365"
+act365 = BasisConv {
                        bc_basis = Basis {
                                              numerator      = N_ACT,
                                              denominator    = D_365,
@@ -547,6 +554,7 @@ _ACT365 = BasisConv {
 
 --------------------------------------------------------------------------
 
+bc30360 = "30360"
 _30360 = BasisConv {
                        bc_basis = Basis {
                                              numerator      = N_30,
@@ -563,7 +571,8 @@ _30360 = BasisConv {
 
 
 --------------------------------------------------------------------------
-_30E360 = BasisConv {
+bc30E360 = "30E360"
+_30e360 = BasisConv {
                        bc_basis = Basis {
                                              numerator      = N_30_E_AFB,
                                              denominator    = D_360,
@@ -579,7 +588,8 @@ _30E360 = BasisConv {
 
 
 --------------------------------------------------------------------------
-_30E360_GERMAN = BasisConv {
+bc30E360_GERMAN = "30E360_GERMAN"
+_30e360_german = BasisConv {
                                bc_basis = Basis {
                                                      numerator      = N_30_E_GERMAN,
                                                      denominator    = D_360,
@@ -598,11 +608,11 @@ _30E360_GERMAN = BasisConv {
 -------------------------------- TESTS -----------------------------------
 --------------------------------------------------------------------------
 
-ex1 = yearFraction ACTACT (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
-ex2 = yearFraction E30360 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
-ex3 = yearFraction US30360 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
-ex4 = yearFraction ACT360 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
-ex5 = yearFraction ACT365 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
+ex1 = yearFraction bcACTACT (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
+ex2 = yearFraction bc30E360 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
+ex3 = yearFraction bc30360 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
+ex4 = yearFraction bcACT360 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
+ex5 = yearFraction bcACT365 (fromGregorian 2014 3 1) (fromGregorian 2014 1 1)
 
 
 

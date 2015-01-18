@@ -8,8 +8,9 @@
 module Configuration.MktConventions.Calendars   
     ( 
      Calendar (..), WeekDay (..), Holidays (..),
-     isInCalendar, isWeekEnd,    
-     target, new_york
+     CalendarLabel,
+     isInCalendar, isWeekEnd, idCalendar,   
+     cTARGET, cNEW_YORK, target, new_york
     ) where
 
 --------------------------------------------------------------------------
@@ -18,13 +19,14 @@ module Configuration.MktConventions.Calendars
 import Data.Time.Calendar
 import Data.Time.Calendar.WeekDate
 import Utils.MyJSON
+import Utils.MyUtils
 
 --------------------------------------------------------------------------
 -------------------------------- Alias -----------------------------------
 --------------------------------------------------------------------------
 type NumMonth = Int
 type NumDay   = Int
-
+type CalendarLabel = String
 --------------------------------------------------------------------------
 ------------------------------- Data -------------------------------------
 --------------------------------------------------------------------------
@@ -53,6 +55,11 @@ data Calendar = Calendar {
 
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
+--------------------------------------------------------------------------
+idCalendar :: CalendarLabel -> Result_ Calendar
+idCalendar "TARGET"   = Ok_ target
+idCalendar "NEW_YORK" = Ok_ new_york
+idCalendar c = Error_ (" idCalendar: " ++ c ++ "Not identified calendar. ")
 --------------------------------------------------------------------------
 isInCalendar :: Calendar -> Day -> Bool
 isInCalendar Calendar {
@@ -99,6 +106,7 @@ isWeekEnd dt = let (y, w, d) = toWeekDate dt
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------
+cTARGET = "TARGET"
 target = Calendar {
                       description = Just "TARGET", 
                       swiftCode   = Nothing,
@@ -109,7 +117,7 @@ target = Calendar {
                                                    })
                   } 
 --------------------------------------------------------------------------
-
+cNEW_YORK = "NEW_YORK"
 new_york = Calendar {
                         description = Just "NYC", 
                         swiftCode   = Nothing,

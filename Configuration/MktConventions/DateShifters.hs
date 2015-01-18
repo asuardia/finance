@@ -7,9 +7,12 @@
 
 module Configuration.MktConventions.DateShifters   
     ( 
-     DateShifter (..), CalendarCheck (..), RollConvention (..),
+     DateShifter (..), DateShifterLabel, CalendarCheck (..), 
+     RollConvention (..),
      shiftDate, checkingCal, applyRollConv, addBusDays,
-     plus_2_BD_EUR, plus_2_OPEN_DAYS, minus_2_OPEN_DAYS
+     idDateShifter,
+     plus_2_bd_eur, plus_2_open_days, minus_2_open_days,
+     dsPLUS_2_BD_EUR, dsPLUS_2_OPEN_DAYS, dsMINUS_2_OPEN_DAYS
     ) where
 
 --------------------------------------------------------------------------
@@ -21,6 +24,10 @@ import Utils.MyJSON
 import Utils.MyUtils
 import Configuration.MktConventions.Calendars as Cal
 import Configuration.MktConventions.DateAdjustments as DAdj
+--------------------------------------------------------------------------
+-------------------------------- Alias -----------------------------------
+--------------------------------------------------------------------------
+type DateShifterLabel = String
 --------------------------------------------------------------------------
 ------------------------------- Data -------------------------------------
 --------------------------------------------------------------------------
@@ -66,6 +73,13 @@ data DateShifter = DateShifter {
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------
+idDateShifter :: DateShifterLabel -> Result_ DateShifter
+idDateShifter "+2_BD_EUR"   = Ok_ plus_2_bd_eur
+idDateShifter "+2_OPEN_DAYS" = Ok_ plus_2_open_days
+idDateShifter "-2_OPEN_DAYS"   = Ok_ minus_2_open_days
+idDateShifter ds = Error_ (" idDateShifter: " ++ ds ++ "Not identified date shifter. ")
+--------------------------------------------------------------------------
+
 
 shiftDate :: DateShifter -> Maybe Calendar -> Day -> Result_ Day
           ---------------------------------
@@ -192,8 +206,8 @@ buildCalendar (External_Plus cal) (Just calExt) = CalendarUnion [cal, calExt]
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------
 
-
-plus_2_BD_EUR = DateShifter {
+dsPLUS_2_BD_EUR = "+2_BD_EUR"
+plus_2_bd_eur = DateShifter {
                                 relativeShifter = Nothing,
                                 calendarCheck   = Internal Cal.target,
                                 adjBefShift     = Nothing,
@@ -205,7 +219,8 @@ plus_2_BD_EUR = DateShifter {
                                 keepIdDates     = False
                             } 
 --------------------------------------------------------------------------
-plus_2_OPEN_DAYS = DateShifter {
+dsPLUS_2_OPEN_DAYS = "+2_OPEN_DAYS"
+plus_2_open_days = DateShifter {
                                    relativeShifter = Nothing,
                                    calendarCheck   = External,
                                    adjBefShift     = Nothing,
@@ -217,7 +232,8 @@ plus_2_OPEN_DAYS = DateShifter {
                                    keepIdDates     = False
                               } 
 --------------------------------------------------------------------------
-minus_2_OPEN_DAYS = DateShifter {
+dsMINUS_2_OPEN_DAYS = "-2_OPEN_DAYS"
+minus_2_open_days = DateShifter {
                                     relativeShifter = Nothing,
                                     calendarCheck   = External,
                                     adjBefShift     = Nothing,

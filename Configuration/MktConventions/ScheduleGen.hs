@@ -6,9 +6,10 @@
 --------------------------------------------------------------------------
 module Configuration.MktConventions.ScheduleGen
     ( 
-     ScheduleGen (..), Generation (..),
-     shiftDate', genSchedule, 
-     _3M_MODFOLL, _6M_MODFOLL, _1Y_MODFOLL
+     ScheduleGen (..), ScheduleGenLabel, Generation (..),
+     idScheduleGen, shiftDate', genSchedule, 
+     sg3M_MODFOLL, sg6M_MODFOLL, sg1Y_MODFOLL,
+     _3m_modfoll, _6m_modfoll, _1y_modfoll
     ) where
 
 --------------------------------------------------------------------------
@@ -22,6 +23,11 @@ import Configuration.MktConventions.Calendars as Cal
 import Configuration.MktConventions.DateAdjustments as DAdj
 import Configuration.MktConventions.DateShifters as DSh
 
+
+--------------------------------------------------------------------------
+-------------------------------- Alias -----------------------------------
+--------------------------------------------------------------------------
+type ScheduleGenLabel = String
 --------------------------------------------------------------------------
 ------------------------------- Data -------------------------------------
 --------------------------------------------------------------------------
@@ -65,6 +71,12 @@ data Units = Month
            | Year deriving (Eq, Show, Data, Typeable, Read)
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
+--------------------------------------------------------------------------
+idScheduleGen :: ScheduleGenLabel -> Result_ ScheduleGen
+idScheduleGen "3M_MODFOLL"   = Ok_ _3m_modfoll
+idScheduleGen "6M_MODFOLL" = Ok_ _6m_modfoll
+idScheduleGen "1Y_MODFOLL" = Ok_ _1y_modfoll
+idScheduleGen sg = Error_ (" idScheduleGen: " ++ sg ++ "Not identified schedule generator. ")
 --------------------------------------------------------------------------
 genSchedule :: ScheduleGen -> Maybe Cal.Calendar -> Day -> Day 
             -> Result_ [Day]
@@ -155,7 +167,8 @@ shiftDate' Year  False dt n = addGregorianMonthsClip  (toInteger $ n*12) dt
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------
-_3M_MODFOLL = SimpleGen {
+sg3M_MODFOLL = "3M_MODFOLL"
+_3m_modfoll = SimpleGen {
                             sgCalendCheck  = DSh.External,
                             sgKeepIdDates  = False,
                             sgGenFrequency = Forward,
@@ -169,7 +182,8 @@ _3M_MODFOLL = SimpleGen {
                             sgEndDate      = Nothing
                         } 
 --------------------------------------------------------------------------
-_6M_MODFOLL = SimpleGen {
+sg6M_MODFOLL = "6M_MODFOLL"
+_6m_modfoll = SimpleGen {
                             sgCalendCheck  = DSh.External,
                             sgKeepIdDates  = False,
                             sgGenFrequency = Forward,
@@ -183,7 +197,8 @@ _6M_MODFOLL = SimpleGen {
                             sgEndDate      = Nothing
                         } 
 --------------------------------------------------------------------------
-_1Y_MODFOLL = SimpleGen {
+sg1Y_MODFOLL = "1Y_MODFOLL"
+_1y_modfoll = SimpleGen {
                             sgCalendCheck  = DSh.External,
                             sgKeepIdDates  = False,
                             sgGenFrequency = Forward,
@@ -201,5 +216,5 @@ _1Y_MODFOLL = SimpleGen {
 --------------------------------------------------------------------------
 -------------------------------- TESTS -----------------------------------
 --------------------------------------------------------------------------
-sgEx1 = genSchedule _6M_MODFOLL (Just target) (fromGregorian 2014 2 28) (fromGregorian 2019 3 6) 
+sgEx1 = genSchedule _6m_modfoll (Just target) (fromGregorian 2014 2 28) (fromGregorian 2019 3 6) 
 

@@ -27,7 +27,7 @@ import Configuration.MktConventions.ScheduleGen
 --------------------------------------------------------------------------
 
 data Schedule = DrivingSchedule {
-                                    schedule :: ScheduleGen
+                                    schedule :: ScheduleGenLabel
                                 }
               | SchEqual2 { equal2 :: SchOption} 
               | SchDeducedFrom {
@@ -65,7 +65,7 @@ data Frequency = Annually | SemiAnnually | Quarterly | Monthly
                 deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data Nominal = Nominal {
-                             nomQuantity :: Integer,
+                             nomQuantity :: Double,
                              nomCurrency :: Currency
                        }
                deriving (Eq, Show, Data, Typeable)

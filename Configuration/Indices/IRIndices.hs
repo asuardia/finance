@@ -7,9 +7,10 @@
 
 module Configuration.Indices.IRIndices   
     ( 
-     IRIndex (..), 
+     IRIndex (..), IRIndexLabel,
      giveRateDates,
-     _EURIBOR3M, _EURIBOR6M
+     euribor3m, euribor6m, eurcms6y, 
+     iEURIBOR3M, iEURIBOR6M, iEURCMS6Y
     ) where
 
 --------------------------------------------------------------------------
@@ -27,6 +28,10 @@ import Configuration.MktConventions.RateConv
 import Configuration.Indices.ArchivingGroups
 import qualified Configuration.CommonTypes.Types as CT
 import qualified Configuration.CommonTypes.TypesProducts as CTP
+--------------------------------------------------------------------------
+-------------------------------- Alias -----------------------------------
+--------------------------------------------------------------------------
+type IRIndexLabel = String
 --------------------------------------------------------------------------
 ------------------------------- Data -------------------------------------
 --------------------------------------------------------------------------
@@ -96,6 +101,12 @@ data CalendarType = Archiving | PayCurrency
 
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
+--------------------------------------------------------------------------
+idIRIndex :: IRIndexLabel -> Result_ IRIndex
+idIRIndex "EURIBOR3M"   = Ok_ euribor3m
+idIRIndex "EURIBOR6M"   = Ok_ euribor6m
+idIRIndex "EURCMS6Y" = Ok_ eurcms6y
+idIRIndex i = Error_ (" idIRIndex: " ++ i ++ ". Not identified index. ")
 --------------------------------------------------------------------------
 
 giveRateDates :: FixOrStart -> IRIndex -> Day 
@@ -182,13 +193,14 @@ deduceDay _ _ _ = Error_ " deduceDay: option not implemented "
 -------------------------------- TESTS -----------------------------------
 --------------------------------------------------------------------------
 
-iriEx1 = giveRateDates Fixing _EURIBOR3M (fromGregorian 2014 12 30)
-iriEx2 = giveRateDates StartDate _EURIBOR3M (fromGregorian 2015 1 1)
+iriEx1 = giveRateDates Fixing euribor3m (fromGregorian 2014 12 30)
+iriEx2 = giveRateDates StartDate euribor3m (fromGregorian 2015 1 1)
 iriEx3 = giveRateDates StartDate _EURCMS6Y (fromGregorian 2015 1 1)
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------
-_EURIBOR3M = IRIndex {
+iEURIBOR3M = "EURIBOR3M"
+euribor3m = IRIndex {
                          iriClassification = Classification {
                                                                clCategory    = Rate,
                                                                clDescription = Nothing,
@@ -217,7 +229,8 @@ _EURIBOR3M = IRIndex {
                                               }
                      }
 --------------------------------------------------------------------------
-_EURIBOR6M = IRIndex {
+iEURIBOR6M = "EURIBOR6M"
+euribor6m = IRIndex {
                          iriClassification = Classification {
                                                                clCategory    = Rate,
                                                                clDescription = Nothing,
@@ -246,14 +259,15 @@ _EURIBOR6M = IRIndex {
                                               }
                      }
 --------------------------------------------------------------------------
-_EURCMS6Y = IRIndex {
+iEURCMS6Y = "EURCMS6Y"
+eurcms6y = IRIndex {
                          iriClassification = Classification {
                                                                clCategory    = Rate,
                                                                clDescription = Nothing,
                                                                clCode        = Nothing,
                                                                clIndexDef    = IndexDef {
                                                                                             idNature            = SwapRate{
-                                                                                                                              rnGenerator = "", --SwapGenerator _EURIBOR6M,
+                                                                                                                              rnGenerator = "", --SwapGenerator euribor6m,
                                                                                                                               rnMaturity  = CTP.Maturity {
                                                                                                                                                              CTP.matTenor = Just CTP.Tenor {
                                                                                                                                                                                               CTP.tenorUnit = CTP.Year,
