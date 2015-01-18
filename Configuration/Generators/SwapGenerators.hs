@@ -237,7 +237,7 @@ data AdFlow = AdFlow {
 data Leg = FixedLeg {
                         lPayReceive :: CTP.PayReceive, 
                         lCurrency :: CurrencyLabel, 
-                        lStartDelay :: DateShifter,
+                        lStartDelay :: DateShifterLabel,
                         lPayCalendar :: CalendarLabel,
                         lSchedDef :: SchedDef,
                         lPayment :: CTP.Payment,
@@ -259,6 +259,7 @@ data Leg = FixedLeg {
                                lIRIndex :: IRIndexLabel, 
                                lFactor :: Int, 
                                lCurrency :: CurrencyLabel,
+                               lStartDelay :: DateShifterLabel,
                                lFirstFix :: Double,
                                lRateConv :: RateConvLabel, 
                                lMargin :: Double,
@@ -307,11 +308,13 @@ data Flow = FixedFlow {
 --------------------------------------------------------------------------
 generateSwap :: SwapGenerator -> StartDate -> CTP.Maturity -> CTP.Nominal
              -> Result_ Swap
-generateSwap swGen@SwapGenerator{swgSchedules = IndSets} 
+          ---------------------------------
+generateSwap swGen@SwapGenerator{swgSchedules = cs@CommSets} 
              stDate mat nom = do
     --let stDate2 = cnfSettDelay stDate
     let amort = swgDefaultAmort swGen
-    legs <- checkAllOk_ $ fmap (generateLeg stDate mat nom Nothing amort) 
+    mainGen <- searchMainGen (swgLegs swGen)
+    legs <- checkAllOk_ $ fmap (generateLeg cs stDate mat nom (Just mainGen) amort) 
                                (swgLegs swGen)
     return Swap {
                     swGenerator = swGen,
@@ -329,10 +332,66 @@ generateSwap swGen@SwapGenerator{swgSchedules = IndSets}
                     swAddFlows = Nothing,
                     swLegs = legs
                 }
+          ---------------------------------
+generateSwap swGen@SwapGenerator{swgSchedules = cs@IndSets} 
+             stDate mat nom = do
+    --let stDate2 = cnfSettDelay stDate
+    let amort = swgDefaultAmort swGen
+    legs <- checkAllOk_ $ fmap (generateLeg cs stDate mat nom Nothing amort) 
+                               (swgLegs swGen)
+    return Swap {
+                    swGenerator = swGen,
+                    swStartDate = stDate,
+                    swMaturity = mat,
+                    swNominal = nom,                     
+                    swEvaluation = swgEvaluation swGen,
+                    swEstimation = swgEstimation swGen,
+                    swNumberLegs = swgNumberLegs swGen,
+                    swSchedules = swgSchedules swGen,
+                    swStubPeriod = swgStubPeriod swGen,
+                    swSettlementDelay = swgSettlementDelay swGen,
+                    swAmortizing = amort,
+                    swMarketQuote = swgMarketQuote swGen,
+                    swAddFlows = Nothing,
+                    swLegs = legs
+                }
+          ---------------------------------
+generateSwap swGen@SwapGenerator{swgSchedules = cs@CommSetsDiffFreq} 
+             stDate mat nom = do
+    --let stDate2 = cnfSettDelay stDate
+    let amort = swgDefaultAmort swGen
+    mainGen <- searchMainGen (swgLegs swGen)
+    legs <- checkAllOk_ $ fmap (generateLeg cs stDate mat nom (Just mainGen) amort) 
+                               (swgLegs swGen)
+    return Swap {
+                    swGenerator = swGen,
+                    swStartDate = stDate,
+                    swMaturity = mat,
+                    swNominal = nom,                     
+                    swEvaluation = swgEvaluation swGen,
+                    swEstimation = swgEstimation swGen,
+                    swNumberLegs = swgNumberLegs swGen,
+                    swSchedules = swgSchedules swGen,
+                    swStubPeriod = swgStubPeriod swGen,
+                    swSettlementDelay = swgSettlementDelay swGen,
+                    swAmortizing = amort,
+                    swMarketQuote = swgMarketQuote swGen,
+                    swAddFlows = Nothing,
+                    swLegs = legs
+                }
+          ---------------------------------
+generateSwap _ _ _ _ = Error_ " generateSwap: option not implemented. "
 --------------------------------------------------------------------------
-generateLeg :: StartDate -> CTP.Maturity -> CTP.Nominal -> Maybe LegGenerator
-            -> Amortizing -> LegGenerator -> Result_ Leg
-generateLeg stDate mat nom mbLg amort lg@FixedLegGen{} = do 
+searchMainGen :: [LegGenerator] -> Result_ LegGenerator
+searchMainGen (lg:lgs) = if isJust (lgStartDelay lg)
+                         then Ok_ lg
+                         else searchMainGen lgs
+searchMainGen [] = Error_ " generateSwap: leg generator not found. "
+--------------------------------------------------------------------------
+generateLeg :: ConfSchedules -> StartDate -> CTP.Maturity -> CTP.Nominal 
+            -> Maybe LegGenerator -> Amortizing -> LegGenerator -> Result_ Leg
+          ---------------------------------
+generateLeg confSch stDate mat nom mbLg amort lg@FixedLegGen{} = do 
     let mainLg = if (isJust mbLg)
                  then fromJust mbLg
                  else lg
@@ -361,7 +420,34 @@ generateLeg stDate mat nom mbLg amort lg@FixedLegGen{} = do
                         -> Amortizing -> LegGenerator -> Result_ [Flow] 
           generateFlows stDate mat nom amort lg = Error_ ""
           ---------------------------------
-generateLeg stDate mat nom mbLg amort lg@FloatingLegGen{} = Error_ ""
+generateLeg confSch stDate mat nom mbLg amort lg@FloatingLegGen{} = do 
+    let mainLg = if (isJust mbLg)
+                 then fromJust mbLg
+                 else lg
+    flows <- generateFlows stDate mat nom amort lg           
+    return FixedLeg {
+                        lPayReceive = lgPayReceive lg, 
+                        lCurrency = lgCurrency lg, 
+                        lStartDelay = fromJust $ lgStartDelay mainLg,
+                        lPayCalendar = fromJust $ lgPayCalendar mainLg,
+                        lSchedDef = fromJust $ lgSchedDef mainLg,
+                        lPayment = lgPayment lg,
+                        lRateConv = lgRateConv lg, 
+                        lRounding = lgRounding lg,
+                        lStubPerDetail = lgStubPerDetail lg,
+                        lDayCount = lgDayCount lg,
+                        lIniExchange = lgIniExchange lg,
+                        lIntermPayments = lgIntermPayments lg,
+                        lFinExchange = lgFinExchange lg,
+                        lAccrualConv = lgAccrualConv lg,
+                        lYieldConv = lgYieldConv lg,
+                        lMarketData = lgMarketData lg,
+                        lRate = 0.0,
+                        lFlows = []
+                    }
+    where generateFlows :: StartDate -> CTP.Maturity -> CTP.Nominal 
+                        -> Amortizing -> LegGenerator -> Result_ [Flow] 
+          generateFlows stDate mat nom amort lg = Error_ ""
 --------------------------------------------------------------------------
 -------------------------------- TESTS -----------------------------------
 --------------------------------------------------------------------------
@@ -443,11 +529,11 @@ sgEUR_IBOR_3M = SwapGenerator {
                                                                                                                               },
                                                                                 sdFixFreqRatio      = Just 1,
                                                                                 sdCapitalSchedule   = Just  CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
-                                                                                sdCapFreqRatio      = Just 1,
+                                                                                sdCapFreqRatio      = Just 1
                                                                             },     
                                             lgFixing = CTP.UpFrontFix,
                                             lgPayment = CTP.InArrearsP,
-                                            lgRateConv = rcACT360, 
+                                            lgRateConv = rcLIN_ACT360, 
                                             lgRounding = CT.None,
                                             lgStubPerDetail = FloatConfStubPerDetail {
                                                                                          cspdCoupon = ShortCoupon,

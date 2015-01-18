@@ -52,12 +52,12 @@ data Classification = Classification {
 data IndexDef = IndexDef {
                              idNature            :: RateNature,
                              idCurrency          :: Currency,
-                             idStartDelay        :: DateShifter,
+                             idStartDelay        :: DateShifterLabel,
                              idCalcStartSchedule :: CTP.Schedule,
                              idCalcEndSchedule   :: CTP.Schedule,
                              idPaymentSchedule   :: CTP.Schedule,
                              idFixingSchedule    :: CTP.Schedule,
-                             idRateConvention    :: RateConv,
+                             idRateConvention    :: RateConvLabel,
                              idRoundRule         :: CT.RoundingRule,
                              idRateCurve         :: Maybe String,
                              idContango          :: Bool,
@@ -116,17 +116,19 @@ giveRateDates Fixing
               iri@IRIndex {
                               iriClassification = Classification {
                                                                      clIndexDef = IndexDef {
-                                                                                               idStartDelay        = dtShift,
-                                                                                               idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = stSched},
+                                                                                               idStartDelay        = dtShiftLab,
+                                                                                               idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = stSchedLab},
                                                                                                idCalcEndSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                                idPaymentSchedule   = paySch,
                                                                                                idFixingSchedule    = fixSch
                                                                                            }
                                                                  }
                           }    
-              dt = do
+              dt = do 
+    dtShift <- idDateShifter dtShiftLab
+    stSched <- idScheduleGen stSchedLab
     let cal = getCalendar iri
-    let fix = checkingCal (sgCalendCheck stSched) (Just cal) (sgRollConv stSched) dt 
+    let fix = checkingCal (sgCalendCheck stSched) (Just cal) (sgRollConv stSched) dt
     startDay      <- shiftDate dtShift (Just cal) fix
     (endDay : _) <- genSchedule stSched (Just cal) fix (addGregorianYearsClip 10 fix)
     --endDay        <- shiftDate dtShift (Just cal) endDay'
@@ -137,8 +139,8 @@ giveRateDates StartDate
               iri@IRIndex {
                               iriClassification = Classification {
                                                                      clIndexDef = IndexDef {
-                                                                                               idStartDelay        = dtShift,
-                                                                                               idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = stSched},
+                                                                                               idStartDelay        = dtShiftLab,
+                                                                                               idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = stSchedLab},
                                                                                                idCalcEndSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                                idPaymentSchedule   = paySch,
                                                                                                idFixingSchedule    = fixSch
@@ -146,6 +148,8 @@ giveRateDates StartDate
                                                                  }
                           }    
               dt = do
+    dtShift <- idDateShifter dtShiftLab
+    stSched <- idScheduleGen stSchedLab
     let cal = getCalendar iri
     let startDay = checkingCal (sgCalendCheck stSched) (Just cal) (sgRollConv stSched) dt 
     fixDay        <- deduceDay fixSch (Just cal) startDay
@@ -184,9 +188,11 @@ getCalendar IRIndex {
 deduceDay :: CTP.Schedule -> Maybe Calendar -> Day -> Result_ Day
 deduceDay CTP.SchEqual2{} mbCal dt = Ok_ dt
 deduceDay CTP.SchDeducedFrom {
-                                CTP.schDedForm = shift                                
-                            } 
-          mbCal dt = shiftDate shift mbCal dt
+                                 CTP.schDedForm = shiftLab                                
+                             } 
+          mbCal dt = do
+    shift <- idDateShifter shiftLab
+    shiftDate shift mbCal dt
 deduceDay _ _ _ = Error_ " deduceDay: option not implemented "
 
 --------------------------------------------------------------------------
@@ -195,7 +201,7 @@ deduceDay _ _ _ = Error_ " deduceDay: option not implemented "
 
 iriEx1 = giveRateDates Fixing euribor3m (fromGregorian 2014 12 30)
 iriEx2 = giveRateDates StartDate euribor3m (fromGregorian 2015 1 1)
-iriEx3 = giveRateDates StartDate _EURCMS6Y (fromGregorian 2015 1 1)
+iriEx3 = giveRateDates StartDate eurcms6y (fromGregorian 2015 1 1)
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------
@@ -208,15 +214,15 @@ euribor3m = IRIndex {
                                                                clIndexDef    = IndexDef {
                                                                                             idNature            = StandardRate,
                                                                                             idCurrency          = eur,
-                                                                                            idStartDelay        = plus_2_OPEN_DAYS,
-                                                                                            idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = _3M_MODFOLL},
+                                                                                            idStartDelay        = dsPLUS_2_OPEN_DAYS,
+                                                                                            idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = sg3M_MODFOLL},
                                                                                             idCalcEndSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                             idPaymentSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                             idFixingSchedule    = CTP.SchDeducedFrom {
                                                                                                                                         CTP.schDedFrom = CTP.SchStart,
-                                                                                                                                        CTP.schDedForm = minus_2_OPEN_DAYS
+                                                                                                                                        CTP.schDedForm = dsMINUS_2_OPEN_DAYS
                                                                                                                                     },
-                                                                                            idRateConvention    = lin_act360,
+                                                                                            idRateConvention    = rcLIN_ACT360,
                                                                                             idRoundRule         = CT.None,
                                                                                             idRateCurve         = Nothing,
                                                                                             idContango          = False,
@@ -238,15 +244,15 @@ euribor6m = IRIndex {
                                                                clIndexDef    = IndexDef {
                                                                                             idNature            = StandardRate,
                                                                                             idCurrency          = eur,
-                                                                                            idStartDelay        = plus_2_OPEN_DAYS,
-                                                                                            idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = _6M_MODFOLL},
+                                                                                            idStartDelay        = dsPLUS_2_OPEN_DAYS,
+                                                                                            idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = sg6M_MODFOLL},
                                                                                             idCalcEndSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                             idPaymentSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                             idFixingSchedule    = CTP.SchDeducedFrom {
                                                                                                                                         CTP.schDedFrom = CTP.SchStart,
-                                                                                                                                        CTP.schDedForm = minus_2_OPEN_DAYS
+                                                                                                                                        CTP.schDedForm = dsMINUS_2_OPEN_DAYS
                                                                                                                                     },
-                                                                                            idRateConvention    = lin_act360,
+                                                                                            idRateConvention    = rcLIN_ACT360,
                                                                                             idRoundRule         = CT.None,
                                                                                             idRateCurve         = Nothing,
                                                                                             idContango          = False,
@@ -277,12 +283,12 @@ eurcms6y = IRIndex {
                                                                                                                                                           }  
                                                                                                                           },
                                                                                             idCurrency          = eur,
-                                                                                            idStartDelay        = plus_2_OPEN_DAYS,
-                                                                                            idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = _1Y_MODFOLL},
+                                                                                            idStartDelay        = dsPLUS_2_OPEN_DAYS,
+                                                                                            idCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = sg1Y_MODFOLL},
                                                                                             idCalcEndSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                             idPaymentSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
                                                                                             idFixingSchedule    = CTP.SchEqual2 {CTP.equal2 = CTP.SchPayment},
-                                                                                            idRateConvention    = lin_act360,
+                                                                                            idRateConvention    = rcLIN_ACT360,
                                                                                             idRoundRule         = CT.None,
                                                                                             idRateCurve         = Nothing,
                                                                                             idContango          = False,

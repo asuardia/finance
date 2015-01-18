@@ -32,7 +32,7 @@ data Schedule = DrivingSchedule {
               | SchEqual2 { equal2 :: SchOption} 
               | SchDeducedFrom {
                                         schDedFrom :: SchOption,
-                                        schDedForm :: DateShifter
+                                        schDedForm :: DateShifterLabel
                                } deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data SchOption = SchStart | SchPayment 
