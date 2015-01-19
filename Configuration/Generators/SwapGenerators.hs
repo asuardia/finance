@@ -89,11 +89,12 @@ data ConfMarketQuote = AutomaticCMQ
                      | OthersCMQ deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data LegGenerator = FixedLegGen {
+                                    lgIsMainLeg :: Bool,
                                     lgPayReceive :: CTP.PayReceive, 
                                     lgCurrency :: CurrencyLabel, 
-                                    lgStartDelay :: Maybe DateShifterLabel,
-                                    lgPayCalendar :: Maybe CalendarLabel,
-                                    lgSchedDef :: Maybe SchedDef',
+                                    lgStartDelay :: DateShifterLabel,
+                                    lgPayCalendar :: CalendarLabel,
+                                    lgSchedDef :: SchedDef,
                                     lgPayment :: CTP.Payment,
                                     lgRateConv :: RateConvLabel, 
                                     lgRounding :: CT.RoundingRule,
@@ -107,13 +108,14 @@ data LegGenerator = FixedLegGen {
                                     lgMarketData :: Map.Map SwapMktData String
                                 } 
                   | FloatingLegGen {
+                                       lgIsMainLeg :: Bool,
                                        lgPayReceive :: CTP.PayReceive, 
                                        lgIRIndex :: IRIndexLabel, 
                                        lgCurrency :: CurrencyLabel, 
-                                       lgStartDelay :: Maybe DateShifterLabel,
-                                       lgPayCalendar :: Maybe CalendarLabel,
-                                       lgFixCalendar :: Maybe CalendarLabel,
-                                       lgSchedDef :: Maybe SchedDef',
+                                       lgStartDelay :: DateShifterLabel,
+                                       lgPayCalendar :: CalendarLabel,
+                                       lgFixCalendar :: CalendarLabel,
+                                       lgSchedDef :: SchedDef,
                                        lgFixing :: CTP.Fixing,
                                        lgPayment :: CTP.Payment,
                                        lgRateConv :: RateConvLabel, 
@@ -148,27 +150,7 @@ data SchedDef = FixedSchedDef {
                                   sdCapitalSchedule   :: CTP.Schedule,
                                   sdCapFreqRatio      :: Int
                               }
-                deriving (Eq, Show, Data, Typeable)  
---------------------------------------------------------------------------
-data SchedDef' = FixedSchedDef' {
-                                  sdCalcStartSchedule' :: Maybe CTP.Schedule,
-                                  sdCalcEndSchedule'   :: Maybe CTP.Schedule,
-                                  sdPaymentSchedule'   :: Maybe CTP.Schedule,
-                                  sdPayFreqRatio'      :: Maybe Int,
-                                  sdCapitalSchedule'   :: Maybe CTP.Schedule,
-                                  sdCapFreqRatio'      :: Maybe Int
-                              }
-              | FloatSchedDef' {
-                                  sdCalcStartSchedule' :: Maybe CTP.Schedule,
-                                  sdCalcEndSchedule'   :: Maybe CTP.Schedule,
-                                  sdPaymentSchedule'   :: Maybe CTP.Schedule,
-                                  sdPayFreqRatio'      :: Maybe Int,
-                                  sdFixingSchedule'    :: Maybe CTP.Schedule,
-                                  sdFixFreqRatio'      :: Maybe Int,
-                                  sdCapitalSchedule'   :: Maybe CTP.Schedule,
-                                  sdCapFreqRatio'      :: Maybe Int
-                              }
-                deriving (Eq, Show, Data, Typeable)                    
+                deriving (Eq, Show, Data, Typeable)        
 --------------------------------------------------------------------------
 data DayCount = FixedDayCount { dcActive :: Bool}
               | FloatDayCount {
@@ -403,7 +385,7 @@ generateSwap swGen@SwapGenerator{swgSchedules = cs@CommSetsDiffFreq}
 generateSwap _ _ _ _ = Error_ " generateSwap: option not implemented. "
 --------------------------------------------------------------------------
 searchMainGen :: [LegGenerator] -> Result_ LegGenerator
-searchMainGen (lg:lgs) = if isJust (lgStartDelay lg)
+searchMainGen (lg:lgs) = if (lgIsMainLeg lg)
                          then Ok_ lg
                          else searchMainGen lgs
 searchMainGen [] = Error_ " generateSwap: leg generator not found. "
@@ -419,8 +401,8 @@ generateLeg confSch stDate mat nom mbLg amort lg@FixedLegGen{} = do
     return FixedLeg {
                         lPayReceive = lgPayReceive lg, 
                         lCurrency = lgCurrency lg, 
-                        lStartDelay = fromJust $ lgStartDelay mainLg,
-                        lPayCalendar = fromJust $ lgPayCalendar mainLg,
+                        lStartDelay = lgStartDelay mainLg,
+                        lPayCalendar = lgPayCalendar mainLg,
                         lSchedDef = generateSchedule confSch mainLg lg,
                         lPayment = lgPayment lg,
                         lRateConv = lgRateConv lg, 
@@ -441,16 +423,16 @@ generateLeg confSch stDate mat nom mbLg amort lg@FixedLegGen{} = do
           generateFlows stDate mat nom amort lg = Error_ ""
           generateSchedule :: ConfSchedules -> LegGenerator -> LegGenerator
                            -> SchedDef
-          generateSchedule IndSets mainLg lg = transSchedule $ fromJust $ lgSchedDef mainLg
-          generateSchedule CommSets mainLg lg = transSchedule $ fromJust $ lgSchedDef mainLg
+          generateSchedule IndSets mainLg lg = lgSchedDef lg
+          generateSchedule CommSets mainLg lg = lgSchedDef mainLg
           generateSchedule CommSetsDiffFreq mainLg lg = 
               FixedSchedDef {
-                                sdCalcStartSchedule = fromJust $ sdCalcStartSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdCalcEndSchedule   = fromJust $ sdCalcEndSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdPaymentSchedule   = fromJust $ sdPaymentSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdPayFreqRatio      = fromJust $ sdPayFreqRatio' (fromJust $ lgSchedDef lg),
-                                sdCapitalSchedule   = fromJust $ sdCapitalSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdCapFreqRatio      = fromJust $ sdCapFreqRatio' (fromJust $ lgSchedDef lg)
+                                sdCalcStartSchedule = sdCalcStartSchedule $ lgSchedDef mainLg,
+                                sdCalcEndSchedule   = sdCalcEndSchedule $ lgSchedDef mainLg,
+                                sdPaymentSchedule   = sdPaymentSchedule $ lgSchedDef mainLg,
+                                sdPayFreqRatio      = sdPayFreqRatio $ lgSchedDef lg,
+                                sdCapitalSchedule   = sdCapitalSchedule $ lgSchedDef mainLg,
+                                sdCapFreqRatio      = sdCapFreqRatio $ lgSchedDef lg
                             }
           ---------------------------------
 generateLeg confSch stDate mat nom mbLg amort lg@FloatingLegGen{} = do 
@@ -463,11 +445,11 @@ generateLeg confSch stDate mat nom mbLg amort lg@FloatingLegGen{} = do
                            lIRIndex = lgIRIndex lg, 
                            lFactor = 1, 
                            lCurrency = lgCurrency lg, 
-                           lStartDelay = fromJust $ lgStartDelay mainLg,
+                           lStartDelay = lgStartDelay mainLg,
                            lFirstFix = 0.0,
                            lMargin = 0.0,
-                           lPayCalendar = fromJust $ lgPayCalendar mainLg,
-                           lFixCalendar = fromJust $ lgFixCalendar mainLg,
+                           lPayCalendar = lgPayCalendar mainLg,
+                           lFixCalendar = lgFixCalendar mainLg,
                            lSchedDef = generateSchedule confSch mainLg lg,
                            lFixing = lgFixing lg,
                            lPayment = lgPayment lg,
@@ -489,45 +471,20 @@ generateLeg confSch stDate mat nom mbLg amort lg@FloatingLegGen{} = do
           generateFlows stDate mat nom amort lg = Error_ ""
           generateSchedule :: ConfSchedules -> LegGenerator -> LegGenerator
                            -> SchedDef
-          generateSchedule IndSets mainLg lg = transSchedule $ fromJust $ lgSchedDef mainLg
-          generateSchedule CommSets mainLg lg = transSchedule $ fromJust $ lgSchedDef mainLg
+          generateSchedule IndSets mainLg lg = lgSchedDef lg
+          generateSchedule CommSets mainLg lg = lgSchedDef mainLg
           generateSchedule CommSetsDiffFreq mainLg lg = 
               FloatSchedDef {
-                                sdCalcStartSchedule = fromJust $ sdCalcStartSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdCalcEndSchedule   = fromJust $ sdCalcEndSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdPaymentSchedule   = fromJust $ sdPaymentSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdPayFreqRatio      = fromJust $ sdPayFreqRatio' (fromJust $ lgSchedDef lg),
-                                sdFixingSchedule    = fromJust $ sdFixingSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdFixFreqRatio      = fromJust $ sdFixFreqRatio' (fromJust $ lgSchedDef lg),
-                                sdCapitalSchedule   = fromJust $ sdCapitalSchedule' (fromJust $ lgSchedDef mainLg),
-                                sdCapFreqRatio      = fromJust $ sdCapFreqRatio' (fromJust $ lgSchedDef lg)
+                                sdCalcStartSchedule = sdCalcStartSchedule $ lgSchedDef mainLg,
+                                sdCalcEndSchedule   = sdCalcEndSchedule $ lgSchedDef mainLg,
+                                sdPaymentSchedule   = sdPaymentSchedule $ lgSchedDef mainLg,
+                                sdPayFreqRatio      = sdPayFreqRatio $ lgSchedDef lg,
+                                sdFixingSchedule    = sdFixingSchedule $ lgSchedDef mainLg,
+                                sdFixFreqRatio      = sdFixFreqRatio $ lgSchedDef lg,
+                                sdCapitalSchedule   = sdCapitalSchedule $ lgSchedDef mainLg,
+                                sdCapFreqRatio      = sdCapFreqRatio $ lgSchedDef lg
                             }
 
---------------------------------------------------------------------------
-
-
---------------------------------------------------------------------------
-transSchedule :: SchedDef' -> SchedDef
-transSchedule sd@FixedSchedDef'{} = 
-    FixedSchedDef {
-                      sdCalcStartSchedule = fromJust $ sdCalcStartSchedule' sd,
-                      sdCalcEndSchedule   = fromJust $ sdCalcEndSchedule' sd,
-                      sdPaymentSchedule   = fromJust $ sdPaymentSchedule' sd,
-                      sdPayFreqRatio      = fromJust $ sdPayFreqRatio' sd,
-                      sdCapitalSchedule   = fromJust $ sdCapitalSchedule' sd,
-                      sdCapFreqRatio      = fromJust $ sdCapFreqRatio' sd
-                  }
-transSchedule sd@FloatSchedDef'{} = 
-    FloatSchedDef {
-                      sdCalcStartSchedule = fromJust $ sdCalcStartSchedule' sd,
-                      sdCalcEndSchedule   = fromJust $ sdCalcEndSchedule' sd,
-                      sdPaymentSchedule   = fromJust $ sdPaymentSchedule' sd,
-                      sdPayFreqRatio      = fromJust $ sdPayFreqRatio' sd,
-                      sdFixingSchedule    = fromJust $ sdFixingSchedule' sd,
-                      sdFixFreqRatio      = fromJust $ sdFixFreqRatio' sd,
-                      sdCapitalSchedule   = fromJust $ sdCapitalSchedule' sd,
-                      sdCapFreqRatio      = fromJust $ sdCapFreqRatio' sd
-                  }
 --------------------------------------------------------------------------
 -------------------------------- TESTS -----------------------------------
 --------------------------------------------------------------------------
@@ -556,18 +513,19 @@ sgEUR_IBOR_3M = SwapGenerator {
                                   swgLegs = [swgFixLeg, swgFloatLeg]
                               } 
     where swgFixLeg = FixedLegGen {
+                                      lgIsMainLeg = False,
                                       lgPayReceive = CTP.Pay, 
                                       lgCurrency = cEUR, 
-                                      lgStartDelay = Nothing,
-                                      lgPayCalendar = Nothing,
-                                      lgSchedDef = Just FixedSchedDef' {
-                                                                          sdCalcStartSchedule' = Nothing,
-                                                                          sdCalcEndSchedule'   = Nothing,
-                                                                          sdPaymentSchedule'   = Nothing,
-                                                                          sdPayFreqRatio'      = Just 4,
-                                                                          sdCapitalSchedule'   = Nothing,
-                                                                          sdCapFreqRatio'      = Just 4
-                                                                      },
+                                      lgStartDelay = cTARGET,
+                                      lgPayCalendar = cTARGET,
+                                      lgSchedDef = FixedSchedDef {
+                                                                      sdCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = sg3M_MODFOLL},
+                                                                      sdCalcEndSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
+                                                                      sdPaymentSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
+                                                                      sdPayFreqRatio      = 4,
+                                                                      sdCapitalSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
+                                                                      sdCapFreqRatio      = 4
+                                                                  },
                                       lgPayment = CTP.InArrearsP,
                                       lgRateConv = rcLIN_30360, 
                                       lgRounding = CT.None,
@@ -592,25 +550,26 @@ sgEUR_IBOR_3M = SwapGenerator {
                                       lgMarketData = Map.fromList [(mkdDiscCurve, "EUR_NO_COL_DISC")]
                                   }
           swgFloatLeg = FloatingLegGen  {
+                                            lgIsMainLeg = True,
                                             lgPayReceive = CTP.Receive,  
                                             lgIRIndex = iEURIBOR3M, 
                                             lgCurrency = cEUR, 
-                                            lgStartDelay = Just dsPLUS_2_OPEN_DAYS,
-                                            lgPayCalendar = Just cTARGET,
-                                            lgFixCalendar = Just cTARGET,
-                                            lgSchedDef = Just FloatSchedDef' {
-                                                                                sdCalcStartSchedule' = Just CTP.DrivingSchedule {CTP.schedule = sg3M_MODFOLL},
-                                                                                sdCalcEndSchedule'   = Just  CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
-                                                                                sdPaymentSchedule'   = Just  CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
-                                                                                sdPayFreqRatio'      = Just 1,
-                                                                                sdFixingSchedule'    = Just CTP.SchDeducedFrom {
-                                                                                                                                  CTP.schDedFrom = CTP.SchStart,
-                                                                                                                                  CTP.schDedForm = dsMINUS_2_OPEN_DAYS
-                                                                                                                              },
-                                                                                sdFixFreqRatio'      = Just 1,
-                                                                                sdCapitalSchedule'   = Just  CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
-                                                                                sdCapFreqRatio'      = Just 1
-                                                                            },     
+                                            lgStartDelay = dsPLUS_2_OPEN_DAYS,
+                                            lgPayCalendar = cTARGET,
+                                            lgFixCalendar = cTARGET,
+                                            lgSchedDef = FloatSchedDef {
+                                                                            sdCalcStartSchedule = CTP.DrivingSchedule {CTP.schedule = sg3M_MODFOLL},
+                                                                            sdCalcEndSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
+                                                                            sdPaymentSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
+                                                                            sdPayFreqRatio      = 1,
+                                                                            sdFixingSchedule    = CTP.SchDeducedFrom {
+                                                                                                                          CTP.schDedFrom = CTP.SchStart,
+                                                                                                                          CTP.schDedForm = dsMINUS_2_OPEN_DAYS
+                                                                                                                      },
+                                                                            sdFixFreqRatio      = 1,
+                                                                            sdCapitalSchedule   = CTP.SchEqual2 {CTP.equal2 = CTP.SchStart},
+                                                                            sdCapFreqRatio      = 1
+                                                                        },     
                                             lgFixing = CTP.UpFrontFix,
                                             lgPayment = CTP.InArrearsP,
                                             lgRateConv = rcLIN_ACT360, 
