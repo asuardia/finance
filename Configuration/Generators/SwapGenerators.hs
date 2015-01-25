@@ -401,7 +401,7 @@ generateLeg stDate mat nom swapGen mbLg lg@FixedLegGen{} = do
                  else lg
     let confSch = swgSchedules swapGen
     let sched = generateSchedule confSch mainLg lg
-    --flows <- generateFlows swapGen stDate mat nom amort lg               
+    flows <- generateFlows stDate mat nom swapGen lg sched              
     return FixedLeg {
                         lPayReceive = lgPayReceive lg, 
                         lCurrency = lgCurrency lg, 
@@ -420,7 +420,7 @@ generateLeg stDate mat nom swapGen mbLg lg@FixedLegGen{} = do
                         lYieldConv = lgYieldConv lg,
                         lMarketData = lgMarketData lg,
                         lRate = 0.0,
-                        lFlows = []
+                        lFlows = flows
                     }
     where generateSchedule :: ConfSchedules -> LegGenerator -> LegGenerator
                            -> SchedDef
@@ -505,7 +505,7 @@ generateFlows stDate mat nom swGen lg
                                           _ -> Error_ " generateFlows: option not implemented. " 
         remCaps <- genRemCap (swgDefaultAmort swGen) (CTP.nomQuantity nom) 
                              (length payDts2)   
-        return (fmap (genFlow 0.0 (lgCurrency lg)) 
+        return (fmap (genFlow 1.0 (lgCurrency lg)) 
                      $ zip4 (init calcDts) (tail calcDts) payDts2 remCaps)
         
     | otherwise = do
@@ -588,7 +588,7 @@ genDates stDate matDt SG.Forward
     let matDt2 = addDays 1 matDt
     calcDts <- genSchedule schedGen Nothing stDate matDt2
     let calcDts2 = (stDate:calcDts)
-    let calcDts3 =  calcDts2--now check the frequency and remove dates       
+    calcDts3 <- checkFrequency freq calcDts2   
     let isNotStub = matDt `elem` calcDts3
     calcDts4 <- if isNotStub then Ok_ calcDts3
                 else case stubDet of ShortCoupon -> Ok_ (calcDts3 ++ [matDt]) 
@@ -610,7 +610,7 @@ genDates stDate matDt SG.Forward
     let matDt2 = addDays 1 matDt
     calcDts <- genSchedule schedGen (Just cal) stDate matDt2
     let calcDts2 = (checkingCal External (Just cal) (sgRollConv schedGen) stDate):calcDts
-    let calcDts3 =  calcDts2--now check the frequency and remove dates       
+    calcDts3 <- checkFrequency freq calcDts2   
     let isNotStub = matDt `elem` calcDts3
     calcDts4 <- if isNotStub then Ok_ calcDts3
                 else case stubDet of ShortCoupon -> Ok_ (calcDts3 ++ [(checkingCal External (Just cal) (sgRollConv schedGen) matDt)]) 
@@ -644,7 +644,7 @@ genDates stDate matDt SG.Backward
     let stDate2 = addDays (-1) stDate
     calcDts <- genSchedule schedGen Nothing stDate2 matDt
     let calcDts2 = calcDts ++ [matDt]
-    let calcDts3 =  calcDts2--now check the frequency and remove dates       
+    calcDts3 <- checkFrequency freq calcDts2   
     let isNotStub = stDate `elem` calcDts3
     calcDts4 <- if isNotStub then Ok_ calcDts3
                 else case stubDet of ShortCoupon -> Ok_ (stDate:calcDts3) 
@@ -666,13 +666,18 @@ genDates stDate matDt SG.Backward
     let stDate2 = addDays (-1) stDate
     calcDts <- genSchedule schedGen (Just cal) stDate2 matDt
     let calcDts2 =  calcDts ++ [checkingCal External (Just cal) (sgRollConv schedGen) matDt]
-    let calcDts3 =  calcDts2--now check the frequency and remove dates       
+    calcDts3 <- checkFrequency freq calcDts2   
     let isNotStub = stDate `elem` calcDts3
     calcDts4 <- if isNotStub then Ok_ calcDts3
                 else case stubDet of ShortCoupon -> Ok_ ((checkingCal External (Just cal) (sgRollConv schedGen) stDate):calcDts3) 
                                      LongCoupon -> Ok_ ((checkingCal External (Just cal) (sgRollConv schedGen) stDate):(tail calcDts3)) 
                                      _ -> Error_ " genDates: option not implemented. " 
     return calcDts4 
+--------------------------------------------------------------------------
+checkFrequency :: Int -> [Day] -> Result_ [Day]
+checkFrequency freq dts
+    = Ok_ [dt | (i, dt) <- (zip [0..] dts), i `mod` freq == 0]
+
 --------------------------------------------------------------------------
 -------------------------------- TESTS -----------------------------------
 --------------------------------------------------------------------------
