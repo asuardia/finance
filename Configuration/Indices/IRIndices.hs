@@ -276,7 +276,7 @@ eurcms6y = IRIndex {
                                                                                                                               rnGenerator = "", --SwapGenerator euribor6m,
                                                                                                                               rnMaturity  = CTP.Maturity {
                                                                                                                                                              CTP.matTenor = Just CTP.Tenor {
-                                                                                                                                                                                              CTP.tenorUnit = CTP.Year,
+                                                                                                                                                                                              CTP.tenorUnit = CT.Year,
                                                                                                                                                                                               CTP.tenorQuantity = 6
                                                                                                                                                                                            },
                                                                                                                                                              CTP.matDate = Nothing

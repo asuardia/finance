@@ -8,7 +8,7 @@
 module Configuration.CommonTypes.TypesProducts   
     ( 
      Schedule (..), SchOption (..), Payment (..), Frequency (..),
-     Fixing (..), PayReceive (..), Maturity (..), Tenor (..), Unit (..),
+     Fixing (..), PayReceive (..), Maturity (..), Tenor (..), 
      Nominal (..)
      
     ) where
@@ -21,6 +21,7 @@ import Utils.MyJSON
 import Configuration.Forex.Currencies
 import Configuration.MktConventions.DateShifters
 import Configuration.MktConventions.ScheduleGen
+import Configuration.CommonTypes.Types as T   
 
 --------------------------------------------------------------------------
 ------------------------------- Data -------------------------------------
@@ -54,12 +55,9 @@ data Maturity = Maturity {
                 deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data Tenor = Tenor {
-                       tenorUnit :: Unit,
+                       tenorUnit :: T.Unit,
                        tenorQuantity :: Int
                    } deriving (Eq, Show, Data, Typeable)
---------------------------------------------------------------------------
-data Unit = Year | Month
-            deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 data Frequency = Annually | SemiAnnually | Quarterly | Monthly
                 deriving (Eq, Show, Data, Typeable)

@@ -6,7 +6,7 @@
 --------------------------------------------------------------------------
 module Configuration.MktConventions.ScheduleGen
     ( 
-     ScheduleGen (..), ScheduleGenLabel, Generation (..),
+     ScheduleGen (..), ScheduleGenLabel, Generation (..), GenerationFreq (..),
      idScheduleGen, shiftDate', genSchedule, 
      sg3M_MODFOLL, sg6M_MODFOLL, sg1Y_MODFOLL,
      _3m_modfoll, _6m_modfoll, _1y_modfoll
@@ -22,6 +22,7 @@ import Utils.MyUtils
 import Configuration.MktConventions.Calendars as Cal
 import Configuration.MktConventions.DateAdjustments as DAdj
 import Configuration.MktConventions.DateShifters as DSh
+import qualified Configuration.CommonTypes.Types as T
 
 
 --------------------------------------------------------------------------
@@ -36,7 +37,7 @@ data ScheduleGen = SimpleGen {
                                  sgCalendCheck  :: DSh.CalendarCheck,
                                  sgKeepIdDates  :: Bool,
                                  sgGenFrequency :: GenerationFreq,
-                                 sgUnit         :: Units,
+                                 sgUnit         :: T.Unit,
                                  sgNumber       :: Int,
                                  sgEndToEnd     :: Bool,
                                  sgGeneration   :: Generation,
@@ -51,7 +52,7 @@ data ScheduleGen = SimpleGen {
                                    sgAdjBefShift :: Maybe DAdj.DateAdjustment,
                                    sgKeepIdDates :: Bool,
                                    sgShiftDef    :: ShiftDef,
-                                   sgUnit        :: Units,
+                                   sgUnit        :: T.Unit,
                                    sgNumber      :: Int,
                                    sgEndToEnd    :: Bool,
                                    sgGeneration  :: Generation,
@@ -66,9 +67,6 @@ type ShiftDef = GenerationFreq
 --------------------------------------------------------------------------
 data Generation = Normal	 
                 | Recursive deriving (Eq, Show, Data, Typeable, Read)
---------------------------------------------------------------------------
-data Units = Month	 
-           | Year deriving (Eq, Show, Data, Typeable, Read)
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------
@@ -156,13 +154,13 @@ genSchedule sg@SimpleGen {
           ---------------------------------
 genSchedule _ _ _ _ = Error_ " genSchedule: option not implemented "         
 --------------------------------------------------------------------------
-shiftDate' :: Units -> Bool -> Day -> Int -> Day
-shiftDate' Month True  dt n = pass2EOM $  
+shiftDate' :: T.Unit -> Bool -> Day -> Int -> Day
+shiftDate' T.Month True  dt n = pass2EOM $  
     addGregorianMonthsClip (toInteger n) dt
-shiftDate' Month False dt n = addGregorianMonthsClip  (toInteger n) dt
-shiftDate' Year  True  dt n = pass2EOM $
+shiftDate' T.Month False dt n = addGregorianMonthsClip  (toInteger n) dt
+shiftDate' T.Year  True  dt n = pass2EOM $
     addGregorianMonthsClip (toInteger $ n*12) dt
-shiftDate' Year  False dt n = addGregorianMonthsClip  (toInteger $ n*12) dt
+shiftDate' T.Year  False dt n = addGregorianMonthsClip  (toInteger $ n*12) dt
 
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
@@ -172,7 +170,7 @@ _3m_modfoll = SimpleGen {
                             sgCalendCheck  = DSh.External,
                             sgKeepIdDates  = False,
                             sgGenFrequency = Forward,
-                            sgUnit         = Month,
+                            sgUnit         = T.Month,
                             sgNumber       = 3,
                             sgEndToEnd     = False,
                             sgGeneration   = Normal,
@@ -187,7 +185,7 @@ _6m_modfoll = SimpleGen {
                             sgCalendCheck  = DSh.External,
                             sgKeepIdDates  = False,
                             sgGenFrequency = Forward,
-                            sgUnit         = Month,
+                            sgUnit         = T.Month,
                             sgNumber       = 6,
                             sgEndToEnd     = False,
                             sgGeneration   = Normal,
@@ -202,7 +200,7 @@ _1y_modfoll = SimpleGen {
                             sgCalendCheck  = DSh.External,
                             sgKeepIdDates  = False,
                             sgGenFrequency = Forward,
-                            sgUnit         = Month,
+                            sgUnit         = T.Month,
                             sgNumber       = 12,
                             sgEndToEnd     = False,
                             sgGeneration   = Normal,

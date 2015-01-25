@@ -7,7 +7,7 @@
 --------------------------------------------------------------------------
 module Configuration.CommonTypes.Types   
     ( 
-     RoundingRule (..)
+     RoundingRule (..), Unit (..)
      
     ) where
 
@@ -23,3 +23,6 @@ import Utils.MyJSON
 data RoundingRule = None | Nearest | ByExcess | ByDefault | Nearest5
                   | ByExcess5 | ByDefault5 | Currency
                     deriving (Eq, Show, Data, Typeable)
+--------------------------------------------------------------------------
+data Unit = Year | Month
+            deriving (Eq, Show, Data, Typeable)
