@@ -64,36 +64,56 @@ idRateConv "LIN_ACT360_DIS" = Ok_ lin_act360_dis
 idRateConv rc = Error_ (" idRateConv: " ++ rc ++ "Not identified rate convention. ")
 
 --------------------------------------------------------------------------
-computeRate :: RateConv -> Day -> Day -> Double -> Result_ Double
+computeRate :: RateConv -> Bool -> Day -> Day -> Double -> Result_ Double
 computeRate RateConv {
                          rc_basis       = basConvLab,
                          computingMode  = Linear,
                          rateExpression = StandardBasis,
                          rateQuotation  = Annualized
                      }
-            d1 d2 r = Ok_ 0.0          
+            cd d1 d2 r = do
+    deltaT <- if cd == True 
+              then yearFraction basConvLab d1 d2
+              else Ok_ 1
+    return (deltaT * r)
+          
 computeRate RateConv {
                          rc_basis       = basConvLab,
                          computingMode  = DailyComp,
                          rateExpression = StandardBasis,
                          rateQuotation  = Annualized
                      }
-            d1 d2 r = Ok_ 0.0              
+            cd d1 d2 r = do
+    n <- if cd == True 
+         then numeratorYearFraction basConvLab d1 d2
+         else Ok_ 1
+    base <- if cd == True 
+            then denominatorYearFraction basConvLab d1 d2
+            else Ok_ 1
+    return ((1 + r/base) ** n -1)              
 computeRate RateConv {
                          rc_basis       = basConvLab,
                          computingMode  = Yield,
                          rateExpression = StandardBasis,
                          rateQuotation  = Annualized
                      }
-            d1 d2 r = Ok_ 0.0              
+            cd d1 d2 r = do
+    deltaT <- if cd == True 
+              then yearFraction basConvLab d1 d2
+              else Ok_ 1
+    return ((1 + r) ** deltaT -1)           
 computeRate RateConv {
                          rc_basis       = basConvLab,
                          computingMode  = Exponential,
                          rateExpression = StandardBasis,
                          rateQuotation  = Annualized
                      }
-            d1 d2 r = Ok_ 0.0         
-computeRate _ _ _ _ = Error_ " computeRate: option not implemented. "
+            cd d1 d2 r = do
+    deltaT <- if cd == True 
+              then yearFraction basConvLab d1 d2
+              else Ok_ 1
+    return (exp deltaT * r - 1)     
+computeRate _ _ _ _ _ = Error_ " computeRate: option not implemented. "
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------

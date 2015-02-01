@@ -11,7 +11,8 @@ module Configuration.MktConventions.BasisConv
      TimeUnits (..), TypeInclExcl (..), EOMAdjust (..), Basis (..), 
      FullPeriodInterp (..), Breakdown (..), PeriodDet (..), Periodicity (..),
      BasisConvLabel,
-     yearFrac, yearFraction,
+     yearFrac, yearFraction, numeratorYearFrac, denominatorYearFrac,
+     numeratorYearFraction, denominatorYearFraction,
      actact, actact_isda, act360, act365, _30360, _30e360_german, _30e360,
      bcACTACT, bcACTACT_ISDA, bcACT360, bcACT365, bc30360, bc30E360_GERMAN, bc30E360
     ) where
@@ -126,13 +127,19 @@ idBasisConv "30E360"   = Ok_ _30e360
 idBasisConv bc = Error_ (" idBasisConv: " ++ bc ++ "Not identified basis convention. ")
 --------------------------------------------------------------------------
 yearFraction :: BasisConvLabel -> Day -> Day -> Result_ Double
-yearFraction "ACTACT_ISDA" dt1 dt2   = yearFrac actact_isda dt1 dt2
-yearFraction "ACTACT" dt1 dt2        = yearFrac actact dt1 dt2
-yearFraction "ACT360" dt1 dt2        = yearFrac act360 dt1 dt2
-yearFraction "ACT365" dt1 dt2        = yearFrac act365 dt1 dt2
-yearFraction "30360" dt1 dt2       = yearFrac _30360 dt1 dt2
-yearFraction "30E360" dt1 dt2        = yearFrac _30e360 dt1 dt2
-yearFraction "30E360_GERMAN" dt1 dt2 = yearFrac _30e360_german dt1 dt2
+yearFraction basConvLab dt1 dt2   = do 
+    basConv <- idBasisConv basConvLab
+    yearFrac basConv dt1 dt2
+--------------------------------------------------------------------------
+numeratorYearFraction :: BasisConvLabel -> Day -> Day -> Result_ Double
+numeratorYearFraction basConvLab dt1 dt2   = do 
+    basConv <- idBasisConv basConvLab
+    numeratorYearFrac basConv dt1 dt2
+--------------------------------------------------------------------------
+denominatorYearFraction :: BasisConvLabel -> Day -> Day -> Result_ Double
+denominatorYearFraction basConvLab dt1 dt2   = do 
+    basConv <- idBasisConv basConvLab
+    denominatorYearFrac basConv dt1 dt2
 
 --------------------------------------------------------------------------
 yearFrac :: BasisConv -> Day -> Day -> Result_ Double
@@ -154,7 +161,7 @@ yearFrac bc@BasisConv {
          d1 d2 = do 
             let numDays = diffDays d2 d1
             denDays    <- cntDaysYear True period eom d1
-            return ((fromIntegral denDays)/(fromIntegral denDays))
+            return ((fromIntegral numDays)/(fromIntegral denDays))
 
           ---------------------------------
 yearFrac bc@BasisConv { 
@@ -321,6 +328,39 @@ yearFrac bc@BasisConv {
           ---------------------------------
 yearFrac bc d1 d2 = Error_ $ " yearFrac: Not implemented: "
                              ++ show bc ++ ".  "
+--------------------------------------------------------------------------
+numeratorYearFrac :: BasisConv -> Day -> Day -> Result_ Double
+          ---------------------------------
+numeratorYearFrac bc@BasisConv { 
+                                  bc_basis = Basis {
+                                                       numerator   = N_ACT,
+                                                       unit        = Days,
+                                                       inclexcl    = ExclusiveT2_T1                                               
+                                                   }          
+                               } 
+         d1 d2 = do 
+            return (fromIntegral numDays)
+    where numDays = (toModifiedJulianDay d2 - toModifiedJulianDay d1)
+          ---------------------------------
+numeratorYearFrac bc d1 d2 = Error_ $ " numeratorYearFrac: Not implemented: "
+                                      ++ show bc ++ ".  "
+--------------------------------------------------------------------------
+denominatorYearFrac :: BasisConv -> Day -> Day -> Result_ Double
+          ---------------------------------
+denominatorYearFrac bc@BasisConv {bc_basis = Basis {denominator = D_360}} 
+         d1 d2 = Ok_ 360.0 
+          ---------------------------------
+denominatorYearFrac bc@BasisConv {bc_basis = Basis {denominator = D_364}} 
+         d1 d2 = Ok_ 364.0 
+          ---------------------------------
+denominatorYearFrac bc@BasisConv {bc_basis = Basis {denominator = D_365}} 
+         d1 d2 = Ok_ 365.0 
+          ---------------------------------
+denominatorYearFrac bc@BasisConv {bc_basis = Basis {denominator = D_366}} 
+         d1 d2 = Ok_ 366.0 
+          ---------------------------------
+denominatorYearFrac bc d1 d2 = Error_ $ " denominatorYearFrac: Not implemented: "
+                                        ++ show bc ++ ".  "
 --------------------------------------------------------------------------
 addMonthEOM :: EOMAdjust -> Day -> Integer -> Result_ Day
 addMonthEOM Yes dt nM = Ok_ (pass2EOM $ addGregorianMonthsClip nM dt)
