@@ -8,7 +8,7 @@
 module Configuration.MktConventions.RateConv   
     ( 
      RateConv (..), RateConvLabel,
-     idRateConv,
+     idRateConv, computeRate, 
      rcYLD_30360, rcLIN_ACT360_DIS, rcLIN_ACT360, rcLIN_30360,
      yld_30360, lin_act360_dis, lin_act360, lin_30360
     ) where
@@ -63,6 +63,37 @@ idRateConv "LIN_30360"   = Ok_ lin_30360
 idRateConv "LIN_ACT360_DIS" = Ok_ lin_act360_dis
 idRateConv rc = Error_ (" idRateConv: " ++ rc ++ "Not identified rate convention. ")
 
+--------------------------------------------------------------------------
+computeRate :: RateConv -> Day -> Day -> Double -> Result_ Double
+computeRate RateConv {
+                         rc_basis       = basConvLab,
+                         computingMode  = Linear,
+                         rateExpression = StandardBasis,
+                         rateQuotation  = Annualized
+                     }
+            d1 d2 r = Ok_ 0.0          
+computeRate RateConv {
+                         rc_basis       = basConvLab,
+                         computingMode  = DailyComp,
+                         rateExpression = StandardBasis,
+                         rateQuotation  = Annualized
+                     }
+            d1 d2 r = Ok_ 0.0              
+computeRate RateConv {
+                         rc_basis       = basConvLab,
+                         computingMode  = Yield,
+                         rateExpression = StandardBasis,
+                         rateQuotation  = Annualized
+                     }
+            d1 d2 r = Ok_ 0.0              
+computeRate RateConv {
+                         rc_basis       = basConvLab,
+                         computingMode  = Exponential,
+                         rateExpression = StandardBasis,
+                         rateQuotation  = Annualized
+                     }
+            d1 d2 r = Ok_ 0.0         
+computeRate _ _ _ _ = Error_ " computeRate: option not implemented. "
 --------------------------------------------------------------------------
 ---------------------- Standard expressions ------------------------------
 --------------------------------------------------------------------------

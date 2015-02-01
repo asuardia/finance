@@ -19,7 +19,7 @@ module Configuration.Generators.SwapGenerators
 --------------------------------------------------------------------------
 import Data.Time.Calendar
 import Data.Maybe
-import Data.List (zip4)
+import Data.List (zip4, zip5, zip6)
 import qualified Data.Map as Map 
 import Utils.MyJSON
 import Utils.MyUtils
@@ -503,10 +503,16 @@ generateFlows stDate mat nom swGen lg
         payDts2 <- case (lgPayment lg) of CTP.InArrearsP -> Ok_ (tail payDts)
                                           CTP.UpFrontP -> Ok_ (init payDts)
                                           _ -> Error_ " generateFlows: option not implemented. " 
+        let rate = replicate (length payDts2) 1.0
+        let caldDts1 = init calcDts
+        let caldDts2 = tail calcDts
         remCaps <- genRemCap (swgDefaultAmort swGen) (CTP.nomQuantity nom) 
                              (length payDts2)   
-        return (fmap (genFlow 1.0 (lgCurrency lg)) 
-                     $ zip4 (init calcDts) (tail calcDts) payDts2 remCaps)
+        cashFlows <- getCashFlows caldDts1 caldDts2 rate 
+                                  (lgDayCount lg) (lgRateConv lg) 
+        return (fmap (genFlow (lgCurrency lg)) 
+                     $ zip6 caldDts1 caldDts2 payDts2 remCaps rate
+                            (zipWith (*) remCaps cashFlows))
         
     | otherwise = do
         let aproxDt = getMatDate stDate mat
@@ -520,24 +526,31 @@ generateFlows stDate mat nom swGen lg
         payDts2 <- case (lgPayment lg) of CTP.InArrearsP -> Ok_ (tail payDts)
                                           CTP.UpFrontP -> Ok_ (init payDts)
                                           _ -> Error_ " generateFlows: option not implemented. " 
-        remCaps <- genRemCap (swgDefaultAmort swGen) (CTP.nomQuantity nom) 
-                             (length payDts2)    
+        let rate = replicate (length payDts2) 1.0
         let limit = findLimit aproxDt calcDts
-        return (fmap (genFlow 0.0 (lgCurrency lg)) 
-                     $ zip4 (take limit $ init calcDts) 
-                            (take limit $ tail calcDts) 
+        let caldDts1 = take limit $ init calcDts
+        let caldDts2 = take limit $ tail calcDts
+        remCaps <- genRemCap (swgDefaultAmort swGen) (CTP.nomQuantity nom) 
+                             (length payDts2)
+        cashFlows <- getCashFlows caldDts1 caldDts2 rate 
+                                  (lgDayCount lg) (lgRateConv lg) 
+        return (fmap (genFlow (lgCurrency lg)) 
+                     $ zip6 caldDts1 
+                            caldDts2
                             (take limit $ payDts2) 
-                            (take limit $ remCaps))
-    where genFlow :: Double -> CurrencyLabel -> (Day, Day, Day, Double) 
+                            (take limit $ remCaps) 
+                            (take limit $ rate) 
+                            (take limit $ zipWith (*) remCaps cashFlows))
+    where genFlow :: CurrencyLabel -> (Day, Day, Day, Double, Double, Double) 
                   -> Flow
-          genFlow rate curr (st, nd, pd, cap) 
+          genFlow curr (st, nd, pd, cap, rate, flow) 
               = FixedFlow {
                              ffCalcStartDate = st,
                              ffCalcEndDate = nd,
                              ffRemCapital = cap,
                              ffRate = rate,
                              ffPayDate = pd,
-                             ffFlow = cap * rate ,
+                             ffFlow = flow ,
                              ffCurr = curr
                           }
           findLimit aproxDt calcDts = let diffs = fmap (diffDays aproxDt) calcDts 
@@ -549,6 +562,24 @@ generateFlows _ _ _ _ _ _ = Error_ " generateFlows: option not implemented. "
 genRemCap :: Amortizing -> Double -> Int -> Result_ [Double]
 genRemCap NoneA iniCap nbFlows = Ok_ (replicate nbFlows iniCap)
 genRemCap _ _ _ = Error_ " genRemCap: option not implemented. " 
+
+--------------------------------------------------------------------------
+getCashFlows :: [Day] -> [Day] -> [Double] -> DayCount -> RateConvLabel
+             -> Result_ [Double]
+getCashFlows dts1 dts2 rts FixedDayCount { dcActive = True} rcl = Ok_ rts
+getCashFlows dts1 dts2 rts FixedDayCount { dcActive = False} rcl = Ok_ rts
+getCashFlows dts1 dts2 rts FloatDayCount {
+                                            dcActive = True,
+                                            dcIncludeMargin = True
+                                         } rcl = Ok_ rts
+getCashFlows dts1 dts2 rts FloatDayCount {
+                                            dcActive = True,
+                                            dcIncludeMargin = False
+                                         } rcl = Ok_ rts
+getCashFlows dts1 dts2 rts FloatDayCount {
+                                            dcActive = False
+                                         } rcl = Ok_ rts
+--getCashFlows _ _ _ _ _ = Error_ " getCashFlows: option not implemented. " 
 
 --------------------------------------------------------------------------
 
