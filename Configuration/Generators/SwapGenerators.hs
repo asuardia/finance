@@ -301,12 +301,21 @@ data Flow = FixedFlow {
                              flfRemCapital :: Double,
                              flfFixDate :: Day,
                              flfRate :: Double,
+                             flfRateDetail :: RateDetail,
                              flfMargin :: Double,
                              flfRateFactor :: Double,
                              flfPayDate :: Day,
                              flfFlow :: Double,
                              flfCurr :: CurrencyLabel
-                         } deriving (Eq, Show, Data, Typeable)             
+                         } deriving (Eq, Show, Data, Typeable)            
+--------------------------------------------------------------------------
+data RateDetail = StdRateDetail {
+                                    rdFix :: Day,
+                                    rdStart :: Day,
+                                    rdEnd :: Day,
+                                    rdPay :: Day
+                                }
+                | SwapRateDetail deriving (Eq, Show, Data, Typeable)
 --------------------------------------------------------------------------
 ------------------------------ Functions ---------------------------------
 --------------------------------------------------------------------------
@@ -442,7 +451,7 @@ generateLeg stDate mat nom swapGen mbLg lg@FloatingLegGen{} = do
                  else lg
     let confSch = swgSchedules swapGen
     let sched = generateSchedule confSch mainLg lg
-    --flows <- generateFlows stDate mat nom amort lg           
+    flows <- generateFlows stDate mat nom swapGen lg sched           
     return FloatingLeg {
                            lPayReceive = lgPayReceive lg, 
                            lIRIndex = lgIRIndex lg, 
@@ -467,7 +476,7 @@ generateLeg stDate mat nom swapGen mbLg lg@FloatingLegGen{} = do
                            lAccrualConv = lgAccrualConv lg,
                            lYieldConv = lgYieldConv lg,
                            lMarketData = lgMarketData lg,
-                           lFlows = []
+                           lFlows = flows
                        }
     where generateSchedule :: ConfSchedules -> LegGenerator -> LegGenerator
                            -> SchedDef
@@ -555,6 +564,115 @@ generateFlows stDate mat nom swGen lg
                              ffFlow = flow ,
                              ffCurr = curr
                           }
+          findLimit aproxDt calcDts = let diffs = fmap (diffDays aproxDt) calcDts 
+                                          limitElem = minimum diffs 
+                                      in (length $ takeWhile ((>) limitElem) diffs) - 1
+          ---------------------------------
+generateFlows stDate mat nom swGen lg 
+              flsch@FloatSchedDef {sdCalcStartSchedule = dSch@CTP.DrivingSchedule {}} 
+    | isJust (CTP.matDate mat) = do     
+        index <- idIRIndex $ lgIRIndex lg
+        let matDt = fromJust $ CTP.matDate mat
+        let dir = case (swgStubPeriod swGen) of UpFrontSP -> SG.Backward 
+                                                InArrearsSP -> SG.Forward 
+        let fixSched = sdFixingSchedule flsch
+        let paySched = sdPaymentSchedule flsch
+        let fixFreq = sdFixFreqRatio flsch
+        let payFreq = sdPayFreqRatio flsch
+        fixCal <- idCalendar $ lgFixCalendar lg
+        payCal <- idCalendar $ lgPayCalendar lg
+        let stubDet = cspdCoupon $ lgStubPerDetail lg
+        calcDts <- genDates stDate matDt dir dSch Nothing payFreq payCal stubDet  
+        fixDts <- genDates stDate matDt dir dSch (Just fixSched) fixFreq fixCal stubDet
+        fixDts2 <- case (lgFixing lg) of CTP.InArrearsFix -> Ok_ (tail fixDts)
+                                         CTP.UpFrontFix -> Ok_ (init fixDts)
+        payDts <- genDates stDate matDt dir dSch (Just paySched) payFreq payCal stubDet
+        payDts2 <- case (lgPayment lg) of CTP.InArrearsP -> Ok_ (tail payDts)
+                                          CTP.UpFrontP -> Ok_ (init payDts)
+                                          _ -> Error_ " generateFlows: option not implemented. " 
+        let rate = replicate (length payDts2) 0.0
+        let margin = replicate (length payDts2) 0.0
+        let rateFactor = replicate (length payDts2) 1.0
+        let caldDts1 = init calcDts
+        let caldDts2 = tail calcDts
+        remCaps <- genRemCap (swgDefaultAmort swGen) (CTP.nomQuantity nom) 
+                             (length payDts2)   
+        cashFlows <- getFixedCashFlows caldDts1 caldDts2 rate 
+                                       (dcActive $ lgDayCount lg) 
+                                       (lgRateConv lg) 
+        checkAllOk_ (fmap (genFlow (lgCurrency lg) index) 
+                         $ zip9 fixDts2 caldDts1 caldDts2 payDts2 remCaps  rate
+                                margin rateFactor (zipWith (*) remCaps cashFlows))        
+    | otherwise = do      
+        index <- idIRIndex $ lgIRIndex lg
+        let aproxDt = getMatDate stDate mat
+        let matDt = addDays 600 aproxDt 
+        let fixSched = sdFixingSchedule flsch
+        let paySched = sdPaymentSchedule flsch
+        let fixFreq = sdFixFreqRatio flsch
+        let payFreq = sdPayFreqRatio flsch
+        fixCal <- idCalendar $ lgFixCalendar lg
+        payCal <- idCalendar $ lgPayCalendar lg
+        let stubDet = cspdCoupon $ lgStubPerDetail lg
+        calcDts <- genDates stDate matDt SG.Forward dSch Nothing payFreq payCal stubDet  
+        fixDts <- genDates stDate matDt SG.Forward dSch (Just fixSched) fixFreq payCal stubDet
+        fixDts2 <- case (lgFixing lg) of CTP.InArrearsFix -> Ok_ (tail fixDts)
+                                         CTP.UpFrontFix -> Ok_ (init fixDts)
+        payDts <- genDates stDate matDt SG.Forward dSch (Just paySched) payFreq payCal stubDet
+        payDts2 <- case (lgPayment lg) of CTP.InArrearsP -> Ok_ (tail payDts)
+                                          CTP.UpFrontP -> Ok_ (init payDts)
+                                          _ -> Error_ " generateFlows: option not implemented. " 
+        let rate = replicate (length payDts2) 0.0
+        let margin = replicate (length payDts2) 0.0
+        let rateFactor = replicate (length payDts2) 1.0
+        let limit = findLimit aproxDt calcDts
+        let caldDts1 = take limit $ init calcDts
+        let caldDts2 = take limit $ tail calcDts
+        remCaps <- genRemCap (swgDefaultAmort swGen) (CTP.nomQuantity nom) 
+                             (length payDts2)
+        cashFlows <- getFixedCashFlows caldDts1 caldDts2 rate 
+                                       (dcActive $ lgDayCount lg) 
+                                       (lgRateConv lg) 
+        checkAllOk_ (fmap (genFlow (lgCurrency lg) index) 
+                     $ zip9 (take limit $ fixDts2) 
+                            caldDts1 
+                            caldDts2
+                            (take limit $ payDts2) 
+                            (take limit $ remCaps) 
+                            (take limit $ rate) 
+                            (take limit $ margin) 
+                            (take limit $ rateFactor) 
+                            (take limit $ zipWith (*) remCaps cashFlows))
+    where genFlow :: CurrencyLabel -> IRIndex -> (Day, Day, Day, Day, Double, Double, Double, Double, Double) 
+                  -> Result_ Flow
+          genFlow curr index (fx, st, nd, pd, cap, rate, mg, rf, flow) 
+              = do 
+              rtDet <- getRateDetail index fx
+              return FloatingFlow {
+                                     flfCalcStartDate = st,
+                                     flfCalcEndDate = nd,
+                                     flfRemCapital = cap,
+                                     flfFixDate = fx,
+                                     flfRate = rate,
+                                     flfRateDetail = rtDet,
+                                     flfMargin = mg,
+                                     flfRateFactor = rf,
+                                     flfPayDate = pd,
+                                     flfFlow = flow,
+                                     flfCurr = curr
+                                 }
+          getRateDetail :: IRIndex -> Day -> Result_ RateDetail
+          getRateDetail index@IRIndex{iriClassification = Classification{clIndexDef = IndexDef{idNature = StandardRate}}}
+                        fxDt = do
+              (fxDt, stDt, endDt, payDt) <- giveRateDates Fixing index fxDt                   
+              return StdRateDetail {
+                                       rdFix = fxDt,
+                                       rdStart = stDt,
+                                       rdEnd = endDt,
+                                       rdPay = payDt
+                                   }
+          getRateDetail IRIndex{iriClassification = Classification{clIndexDef = IndexDef{idNature = SwapRate{}}}}
+                        fxDt = Ok_ SwapRateDetail
           findLimit aproxDt calcDts = let diffs = fmap (diffDays aproxDt) calcDts 
                                           limitElem = minimum diffs 
                                       in (length $ takeWhile ((>) limitElem) diffs) - 1

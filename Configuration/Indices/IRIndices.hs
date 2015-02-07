@@ -7,8 +7,9 @@
 
 module Configuration.Indices.IRIndices   
     ( 
-     IRIndex (..), IRIndexLabel,
-     giveRateDates,
+     IRIndex (..), IRIndexLabel, Classification (..), IndexDef (..),
+     RateNature (..), FixOrStart (..),
+     giveRateDates, idIRIndex,
      euribor3m, euribor6m, eurcms6y, 
      iEURIBOR3M, iEURIBOR6M, iEURCMS6Y
     ) where
@@ -130,7 +131,7 @@ giveRateDates Fixing
     let cal = getCalendar iri
     let fix = checkingCal (sgCalendCheck stSched) (Just cal) (sgRollConv stSched) dt
     startDay      <- shiftDate dtShift (Just cal) fix
-    (endDay : _) <- genSchedule stSched (Just cal) fix (addGregorianYearsClip 10 fix)
+    (endDay : _) <- genSchedule stSched (Just cal) startDay (addGregorianYearsClip 10 startDay)
     --endDay        <- shiftDate dtShift (Just cal) endDay'
     payDay        <- deduceDay paySch (Just cal) endDay
     return (fix, startDay, endDay, payDay)     
